@@ -1,0 +1,19 @@
+# Haskell build artifacts
+dist/
+dist-newstyle/
+*.hi
+*.o
+*.exe
+*.dll
+*.tmp
+*.bak
+*.log
+*.ghc.environment.*
+.stack-work/
+*.local
+cabal.project.local
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp

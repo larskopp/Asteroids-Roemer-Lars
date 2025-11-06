@@ -1,6 +1,11 @@
-module Model where
+module Model 
+( GameState(..), Ship(..), Bullet(..), Asteroid(..), Enemy(..), 
+  windowWidth, windowHeight, bulletLifetime, minAsteroidSize, splitFactor, 
+  enemySpawnScore, enemySpeed, initialState, initialAsteroids 
+) where
 
 import Graphics.Gloss.Interface.IO.Game
+import System.Random
 
 ------------------------------------------------------------
 -- Window setup
@@ -13,7 +18,7 @@ windowHeight = 600
 -- Bullet settings
 ------------------------------------------------------------
 bulletLifetime :: Float
-bulletLifetime = 2.0  -- seconds
+bulletLifetime = 1.0  -- seconds
 
 ------------------------------------------------------------
 -- Asteroid splitting constants
@@ -26,21 +31,25 @@ splitFactor     = 0.6    -- size ratio for child asteroids
 -- Enemy behavior constants
 ------------------------------------------------------------
 enemySpawnScore :: Int
-enemySpawnScore = 50     -- spawn an enemy after this score
+enemySpawnScore = 500     -- spawn an enemy after this score
 
 enemySpeed :: Float
-enemySpeed = 60          -- pixels per second
+enemySpeed = 70          -- pixels per second
 
 ------------------------------------------------------------
 -- Game model
 ------------------------------------------------------------
 data GameState = GameState
-  { player     :: Ship
-  , bullets    :: [Bullet]
-  , asteroids  :: [Asteroid]
-  , enemies    :: [Enemy]
-  , score      :: Int
-  , isPaused   :: Bool
+  { player          :: Ship
+  , bullets         :: [Bullet]
+  , asteroids       :: [Asteroid]
+  , enemies         :: [Enemy]
+  , score           :: Int
+  , isPaused        :: Bool
+  , spawnTimer      :: Float
+  , enemySpawnTimer :: Float
+  , generator       :: StdGen
+  , stars           :: [Point]
   } deriving (Show, Eq)
 
 ------------------------------------------------------------
@@ -85,26 +94,47 @@ data Enemy = Enemy
 -- Initial state
 ------------------------------------------------------------
 initialState :: GameState
-initialState = GameState
-  { player     = Ship { position = (0, 0)
-                      , velocity = (0, 0)
-                      , angle = 90
-                      , angularV = 0
-                      , thrusting = False
-                      }
-  , bullets    = []
-  , asteroids  = initialAsteroids
-  , enemies    = []     -- no enemies at start
-  , score      = 0
-  , isPaused   = False
-  }
+initialState =
+  let g = mkStdGen 43
+      halfW = windowWidth / 2
+      halfH = windowHeight / 2
+
+      generateStars n gen = 
+        if n <= 0 
+        then ([], gen)
+        else 
+          let 
+            (x, g1) = randomR (-halfW, halfW) gen
+            (y, g2) = randomR (-halfH, halfH) g1
+            (rest, g_final) = generateStars (n - 1) g2
+          in ((x, y) : rest, g_final)
+
+      (starList, finalGen) = generateStars 200 g
+  in GameState
+    { player          = Ship { position = (0, 0)
+                        , velocity = (0, 0)
+                        , angle = 90
+                        , angularV = 0
+                        , thrusting = False
+                        }
+    , bullets         = []
+    , asteroids       = initialAsteroids
+    , enemies         = []     -- no enemies at start
+    , score           = 0
+    , isPaused        = False
+    , spawnTimer      = 1.0
+    , enemySpawnTimer = 1.0
+    , generator       = g 
+    , stars           = starList
+    }
 
 ------------------------------------------------------------
 -- Initial asteroids
 ------------------------------------------------------------
 initialAsteroids :: [Asteroid]
-initialAsteroids =
-  [ Asteroid { aPos = (150, 100),  aVel = (-30,  20), aSize = 40 }
-  , Asteroid { aPos = (-200, -150), aVel = (40, -15), aSize = 60 }
-  , Asteroid { aPos = (100, -200), aVel = (-25,  30), aSize = 50 }
-  ]
+initialAsteroids = []
+
+  --[ Asteroid { aPos = (150, 100),  aVel = (-30,  20), aSize = 40 }
+  --, Asteroid { aPos = (-200, -150), aVel = (40, -15), aSize = 60 }
+  --, Asteroid { aPos = (100, -200), aVel = (-25,  30), aSize = 50 }
+  --]

@@ -9,15 +9,26 @@ handleInput ev gs = case ev of
   EventKey (Char 'p') Down _ _ ->
     gs { isPaused = not (isPaused gs) }
 
+  EventKey (Char 'P') Down _ _ ->
+    gs { isPaused = not (isPaused gs) }
+
   -- Rotate left/right (A/D)
-  EventKey (Char 'a') Down _ _ -> setAngularV  120 gs   -- left
-  EventKey (Char 'd') Down _ _ -> setAngularV (-120) gs -- right
-  EventKey (Char 'a') Up   _ _ -> stopTurn gs  120
-  EventKey (Char 'd') Up   _ _ -> stopTurn gs (-120)
+  EventKey (Char 'a') Down _ _ -> setAngularV  200 gs   -- left
+  EventKey (Char 'd') Down _ _ -> setAngularV (-200) gs -- right
+  EventKey (Char 'a') Up   _ _ -> stopTurn gs  200
+  EventKey (Char 'd') Up   _ _ -> stopTurn gs (-200)
+
+  EventKey (Char 'A') Down _ _ -> setAngularV  200 gs   -- left
+  EventKey (Char 'D') Down _ _ -> setAngularV (-200) gs -- right
+  EventKey (Char 'A') Up   _ _ -> stopTurn gs  200
+  EventKey (Char 'D') Up   _ _ -> stopTurn gs (-200)
 
   -- Thrust toggle
   EventKey (Char 'w') Down _ _ -> gs { player = (player gs) { thrusting = True } }
   EventKey (Char 'w') Up   _ _ -> gs { player = (player gs) { thrusting = False } }
+
+  EventKey (Char 'W') Down _ _ -> gs { player = (player gs) { thrusting = True } }
+  EventKey (Char 'W') Up   _ _ -> gs { player = (player gs) { thrusting = False } }
 
   -- Shooting
   EventKey (SpecialKey KeySpace) Down _ _ -> shootBullet gs

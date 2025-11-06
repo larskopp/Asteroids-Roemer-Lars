@@ -8,12 +8,24 @@ import Model
 ------------------------------------------------------------
 draw :: GameState -> Picture
 draw gs = pictures
-  [ drawShip (player gs)
+  [ drawStars (stars gs)
+  ,  drawShip (player gs)
   , pictures (map drawBullet (bullets gs))
   , pictures (map drawAsteroid (asteroids gs))
   , pictures (map drawEnemy (enemies gs))
   , drawScore (score gs)
   ]
+
+------------------------------------------------------------
+--Draw stars
+------------------------------------------------------------
+
+drawStars :: [Point] -> Picture
+drawStars points =
+  color (greyN 0.2) $
+  pictures $ map drawStar points
+  where
+    drawStar (x, y) = translate x y $ circleSolid 1
 
 ------------------------------------------------------------
 -- Draw ship

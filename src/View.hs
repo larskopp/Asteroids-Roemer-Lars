@@ -4,6 +4,12 @@ import Graphics.Gloss
 import Model
 
 ------------------------------------------------------------
+-- Custom Colors
+------------------------------------------------------------
+darkRed :: Color
+darkRed = makeColor 0.7 0.0 0.0 1.0
+
+------------------------------------------------------------
 -- Main draw function
 ------------------------------------------------------------
 draw :: GameState -> Picture
@@ -14,6 +20,7 @@ draw gs = pictures
   , pictures (map drawAsteroid (asteroids gs))
   , pictures (map drawEnemy (enemies gs))
   , drawScore (score gs)
+  , drawLives (lives gs)
   ]
 
 ------------------------------------------------------------
@@ -32,14 +39,23 @@ drawStars points =
 ------------------------------------------------------------
 drawShip :: Ship -> Picture
 drawShip ship =
-  translate x y $
-  rotate (-(angle ship)) $
-  pictures
-    [
-      drawThrust ship ,
-      color white $
-      polygon [(-10,-10),(20,0),(-10,10)]
-    ]
+  let
+    invincibilityTime = iTimer ship
+    isInvincible = invincibilityTime > 0
+    blinkOn = round (invincibilityTime * 4) `mod` 2 == 0
+    
+    shipPicture = pictures
+             [ 
+               drawThrust ship,  -- Teken de vlammen
+               color white $ 
+               polygon [(-10,-10),(20,0),(-10,10)] -- Het schip zelf
+             ]
+  in
+    if isInvincible && not blinkOn
+      then blank
+      else translate x y $
+           rotate (-(angle ship)) $
+           shipPicture
   where
     (x, y) = position ship
 
@@ -156,3 +172,81 @@ drawScore sc =
   scale 0.15 0.15 $
   color white $
   text ("Score: " ++ show sc)
+
+------------------------------------------------------------
+-- Draw lives
+------------------------------------------------------------
+drawLives :: Int -> Picture
+drawLives numLives =
+  let
+    heartRedPixels = 
+      [ (-3, 0), (-3, -1), (-3, -2)
+      , (-2, 1), (-2, 0), (-2, -1), (-2, -2), (-2, -3)
+      , (-1, 1), (-1, 0), (-1, -1), (-1, -2), (-1, -3), (-1, -4)
+      , (0, 0), (0,-1), (0, -2), (0, -3), (0, -4), (0,-5)
+      , (1, -1), (1, -2), (1, -3), (1, -4), (1, -5), (1, -6)
+      , (2, -1), (2, -2), (2, -3), (2, -4), (2, -5), (2, -6), (2, -7)
+      , (3, 0), (3, -1), (3, -2), (3, -3), (3, -4), (3, -5), (3, -6), (3, -7)
+      , (4, 1), (4, 0), (4, -1), (4, -2), (4, -3), (4, -4), (4, -5), (4, -6)
+      , (5, 1), (5, -1), (5, -2), (5, -3), (5, -4), (5, -5)
+      , (6, 1), (6, 0), (6, -2), (6, -3), (6, -4)
+      , (7, 0), (7, -1), (7, -2), (7, -3)
+      ]
+
+    heartShinePixels = 
+      [ (5, 0), (6, -1) ]
+
+    shadow = 
+      [ (-4,0), (-4,-1), (-4,-2), (-4, -3)
+      , (-3, 1), (-3, -3), (-3,-4)
+      , (-2, -4), (-2,-5)
+      , (-1, -5), (-1, -6)
+      , (0, -6), (0, -7)
+      , (1, -7), (1,-8)
+      , (2, -8)
+      ]
+
+    heartBorder = 
+      [ (-5,0), (-5, -1), (-5,-2), (-5,-3)
+      , (-4, 1), (-4, -4)
+      , (-3, 2), (-3, -5)
+      , (-2, 2), (-2, -6)
+      , (-1, 2), (-1, -7)
+      , (0, 1), (0, -8)
+      , (1, 0), (1, -9)
+      , (2, 0), (2, -9)
+      , (3, 1), (3, -8)
+      , (4, 2), (4, -7)
+      , (5, 2), (5, -6)
+      , (6, 2), (6, -5)
+      , (7, 1), (7, -4)
+      , (8, 0), (8, -1), (8,-2), (8, -3)
+      ]
+
+    pixelSize = 2.0 
+
+    drawPixels :: Color -> [(Float, Float)] -> Picture
+    drawPixels c points = 
+        color c $
+        pictures [ translate (x * pixelSize) (y * pixelSize) (rectangleSolid pixelSize pixelSize) | (x, y) <- points ]
+
+    pixelHeart :: Picture
+    pixelHeart = 
+        translate 0 (-1 * pixelSize) $
+        pictures [ 
+             drawPixels black heartBorder
+           , drawPixels darkRed shadow
+           , drawPixels red heartRedPixels 
+           , drawPixels white heartShinePixels
+        ]
+
+    spacing = 45
+    
+    hearts = 
+      [ translate (x * spacing) 0 pixelHeart
+      | i <- [1..numLives]
+      , let x = fromIntegral i * 0.75 -- Compacte positionering
+      ]
+  in
+    translate (-windowWidth/2 - 10) (windowHeight/2 - 55) $
+    pictures hearts

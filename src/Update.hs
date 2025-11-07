@@ -11,10 +11,14 @@ step :: Float -> GameState -> GameState
 step dt gs
   | isPaused gs = gs
   | otherwise   =
+     let
+     player' = (player gs) {iTimer = max 0 (iTimer (player gs) - dt) }
+     gs' = gs {player = player'}
+     in
       handleCollisions $
       (spawnAsteroid dt) $
       (spawnEnemies dt) $
-      gs { player    = moveShip dt (player gs)
+      gs { player    = moveShip dt (player')
          , bullets   = updateBullets dt (bullets gs)
          , asteroids = updateAsteroids dt (asteroids gs)
          , enemies   = updateEnemies dt (player gs) (enemies gs)
@@ -249,17 +253,40 @@ getAsteroidScore a
     | aSize a >= 25.0 = 50    -- medium asteroid
     | otherwise       = 100   -- small asteroid
 
+resetPlayer :: GameState -> GameState
+resetPlayer gs =
+  let 
+    newLives = lives gs - 1
+  in 
+    if newLives <= 0
+      then initialState { generator = generator gs }
+      else gs { 
+        player = (player gs) { 
+          position = (0, 0), 
+          velocity = (0, 0),
+          angle = 0,
+          angularV = 0,
+          iTimer = invincibilityDuration
+        },
+        bullets = [],
+        lives = newLives
+      }
+
 handleCollisions :: GameState -> GameState
 handleCollisions gs =
   let g_in = generator gs
       (bs1, as1, sc1, g_out) = collideAll g_in (bullets gs) (asteroids gs) (score gs)
       (bs2, es1, sc2) = collideEnemies bs1 (enemies gs) sc1
+
+      isVulnerable    = iTimer (player gs) <=0
       enemyHit        = any (\e -> dist (ePos e) (position (player gs)) < eSize e) es1
       asteroidHit     = any (\a -> dist (aPos a) (position (player gs)) < 10 + aSize a) as1
       shipHit         = enemyHit || asteroidHit
-  in if shipHit
-     then initialState  {generator = g_out} -- reset game if ship hit by enemy
-     else gs { bullets = bs2, asteroids = as1, enemies = es1, score = sc2, generator = g_out}
+
+      newState        = gs { bullets = bs2, asteroids = as1, enemies = es1, score = sc2, generator = g_out}
+  in if shipHit && isVulnerable
+     then resetPlayer  newState -- reset player if ship hit by enemy
+     else newState
 
 ------------------------------------------------------------
 -- Bullet vs Asteroid collisions

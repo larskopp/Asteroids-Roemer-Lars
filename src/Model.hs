@@ -1,8 +1,4 @@
-module Model 
-( GameState(..), Ship(..), Bullet(..), Asteroid(..), Enemy(..), 
-  windowWidth, windowHeight, bulletLifetime, minAsteroidSize, splitFactor, 
-  enemySpawnScore, enemySpeed, initialState, initialAsteroids 
-) where
+module Model where
 
 import Graphics.Gloss.Interface.IO.Game
 import System.Random
@@ -13,6 +9,12 @@ import System.Random
 windowWidth, windowHeight :: Float
 windowWidth  = 800
 windowHeight = 600
+
+------------------------------------------------------------
+-- Ship settings
+------------------------------------------------------------
+invincibilityDuration :: Float
+invincibilityDuration = 2.0
 
 ------------------------------------------------------------
 -- Bullet settings
@@ -50,6 +52,7 @@ data GameState = GameState
   , enemySpawnTimer :: Float
   , generator       :: StdGen
   , stars           :: [Point]
+  , lives           :: Int
   } deriving (Show, Eq)
 
 ------------------------------------------------------------
@@ -61,6 +64,7 @@ data Ship = Ship
   , angle     :: Float
   , angularV  :: Float
   , thrusting :: Bool
+  , iTimer    :: Float
   } deriving (Show, Eq)
 
 ------------------------------------------------------------
@@ -118,6 +122,7 @@ initialState =
                         , angle = 90
                         , angularV = 0
                         , thrusting = False
+                        , iTimer = 0.0
                         }
     , bullets         = []
     , asteroids       = initialAsteroids
@@ -128,6 +133,7 @@ initialState =
     , enemySpawnTimer = 1.0
     , generator       = g 
     , stars           = starList
+    , lives           = 3
     }
 
 ------------------------------------------------------------

@@ -34,10 +34,52 @@ drawShip :: Ship -> Picture
 drawShip ship =
   translate x y $
   rotate (-(angle ship)) $
-  color white $
-  polygon [(-10,-10),(20,0),(-10,10)]
+  pictures
+    [
+      drawThrust ship ,
+      color white $
+      polygon [(-10,-10),(20,0),(-10,10)]
+    ]
   where
     (x, y) = position ship
+
+drawThrust :: Ship -> Picture
+drawThrust ship
+  | thrusting ship =
+    let 
+      flickerFactor = (sin (positionX / 100) + 1) / 2 
+      positionX     = fst (position ship)
+
+      outerLength  = 13 + 5 * flickerFactor
+      outerBaseY   = 7 
+      
+      innerLength  = outerLength * 0.7 
+      innerBaseY   = 4
+      
+      baseX = -10
+      
+      innerFlame = 
+        [ (baseX, -innerBaseY)
+        , (baseX - innerLength, 0)
+        , (baseX, innerBaseY)
+        ]
+      
+      outerFlame = 
+        [ (baseX, -outerBaseY)
+        , (baseX - outerLength, 0)
+        , (baseX, outerBaseY)
+        ]
+        
+      outerColor = mixColors (1 - flickerFactor) flickerFactor red orange
+      innerColor = mixColors flickerFactor (1 - flickerFactor) yellow orange
+      
+    in 
+      pictures
+      [ color outerColor (polygon outerFlame)
+      , color innerColor (polygon innerFlame)
+      ]
+
+  | otherwise = blank
 
 ------------------------------------------------------------
 -- Draw bullet
@@ -77,7 +119,7 @@ drawEnemy e =
 ------------------------------------------------------------
 drawScore :: Int -> Picture
 drawScore sc =
-  translate (-windowWidth/2 + 20) (windowHeight/2 - 40) $
+  translate (-windowWidth /2 + 20) (windowHeight/2 - 40) $
   scale 0.15 0.15 $
   color white $
   text ("Score: " ++ show sc)

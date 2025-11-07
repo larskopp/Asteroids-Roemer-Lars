@@ -21,6 +21,7 @@ draw gs = pictures
   , pictures (map drawEnemy (enemies gs))
   , drawScore (score gs)
   , drawLives (lives gs)
+  , drawHighScore (highscore gs)
   ]
 
 ------------------------------------------------------------
@@ -174,8 +175,29 @@ drawScore sc =
   text ("Score: " ++ show sc)
 
 ------------------------------------------------------------
+-- Draw highscore
+------------------------------------------------------------
+drawHighScore :: Int -> Picture
+drawHighScore hsc =
+  let
+    internalScale = 0.12
+    displayScale = 1.2 -- Schaal de hele structuur licht op
+
+    textPicture = 
+      scale internalScale internalScale $
+      color (greyN 0.8) $
+      text ("High Score: " ++ show hsc)
+
+  in
+    translate (windowWidth/2 - 530) (windowHeight/2 - 65) $
+    scale displayScale displayScale $
+    translate (-25 / internalScale) 0 $
+    textPicture
+
+------------------------------------------------------------
 -- Draw lives
 ------------------------------------------------------------
+
 drawLives :: Int -> Picture
 drawLives numLives =
   let
@@ -248,5 +270,5 @@ drawLives numLives =
       , let x = fromIntegral i * 0.75 -- Compacte positionering
       ]
   in
-    translate (-windowWidth/2 - 10) (windowHeight/2 - 55) $
+    translate (-windowWidth/2-5) (windowHeight/2 - 80) $
     pictures hearts

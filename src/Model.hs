@@ -53,6 +53,7 @@ data GameState = GameState
   , generator       :: StdGen
   , stars           :: [Point]
   , lives           :: Int
+  , highscore       :: Int 
   } deriving (Show, Eq)
 
 ------------------------------------------------------------
@@ -134,6 +135,7 @@ initialState =
     , generator       = g 
     , stars           = starList
     , lives           = 3
+    , highscore       = 0
     }
 
 ------------------------------------------------------------

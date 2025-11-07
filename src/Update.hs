@@ -257,20 +257,35 @@ resetPlayer :: GameState -> GameState
 resetPlayer gs =
   let 
     newLives = lives gs - 1
-  in 
-    if newLives <= 0
-      then initialState { generator = generator gs }
-      else gs { 
-        player = (player gs) { 
-          position = (0, 0), 
-          velocity = (0, 0),
-          angle = 0,
-          angularV = 0,
-          iTimer = invincibilityDuration
-        },
-        bullets = [],
-        lives = newLives
-      }
+    currentScore = score gs
+    newHighScore = max (highscore gs) currentScore
+    
+    isGameOver = newLives <= 0
+    
+    baseState = initialState
+    
+    gameOverState = baseState 
+                    { 
+                    generator = generator gs,
+                    highscore = newHighScore
+                    }
+    
+    respawnState = gs { 
+      player = (player gs) { 
+        position = (0, 0), 
+        velocity = (0, 0),
+        angle = 0,
+        angularV = 0,
+        iTimer = invincibilityDuration
+      },
+      bullets = [], 
+      lives = newLives,
+      highscore = highscore gs
+    }
+    
+  in if isGameOver
+      then gameOverState
+      else respawnState
 
 handleCollisions :: GameState -> GameState
 handleCollisions gs =

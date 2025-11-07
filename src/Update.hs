@@ -109,31 +109,33 @@ newAsteroid g =
 
     -- Gebruik de generator in de return, en de inkomende g1 voor de randomR calls
     (startX, startY, g2) = case edge of
-      0 -> -- Bovenrand
+      0 -> -- Top
         let (x, g_next) = randomR (-halfWidth, halfWidth) g1
         in (x, halfHeight + buffer, g_next)
-      1 -> -- Onderrand
+      1 -> -- Bottem 
         let (x, g_next) = randomR (-halfWidth, halfWidth) g1
         in (x, -halfHeight - buffer, g_next)
-      2 -> -- Linkerrand
+      2 -> -- Left
         let (y, g_next) = randomR (-halfHeight, halfHeight) g1
         in (-halfWidth - buffer, y, g_next)
-      3 -> -- Rechterrand
+      3 -> -- Right
         let (y, g_next) = randomR (-halfHeight, halfHeight) g1
         in (halfWidth + buffer, y, g_next)
       _ -> (0, 0, g1)
 
     startPos = (startX, startY)
 
-    -- Gebruik g2 als de basis voor de volgende willekeurige getallen
     (minV, maxV) = (40, 100)
     (baseSpeed, g3) = randomR (minV, maxV) g2
 
     (minSize, maxSize) = (40, 60)
     (size, g4) = randomR (minSize, maxSize) g3
     
-    (targetX, g5) = randomR (-halfWidth, halfWidth) g4
-    (targetY, g6) = randomR (-halfHeight, halfHeight) g5
+    (randRot, g5) = randomR (0.0, 360.0) g4 
+    (randTex, g6) = randomR (1 :: Int, 7 :: Int) g5
+
+    (targetX, g7) = randomR (-halfWidth, halfWidth) g6
+    (targetY, g8) = randomR (-halfHeight, halfHeight) g7
     
     dx = targetX - startX
     dy = targetY - startY
@@ -145,7 +147,9 @@ newAsteroid g =
   in (Asteroid { aPos = startPos
                , aVel = (velX, velY)
                , aSize = size
-               }, g6)
+               , aRotation = randRot  -- Veld toevoegen
+               , aTexture = randTex   -- Veld toevoegen
+               }, g8)
 
 
 moveAsteroid :: Float -> Asteroid -> Asteroid
@@ -185,16 +189,16 @@ newEnemy g =
     (edge, g1) = randomR (0 :: Int, 3) g
 
     (startX, startY, g2) = case edge of
-      0 -> -- Bovenrand 
+      0 -> -- Top
         let (x, g_temp) = randomR (-halfWidth, halfWidth) g1
         in (x, halfHeight + buffer, g_temp)
-      1 -> -- Onderrand 
+      1 -> -- Bottem
         let (x, g_temp) = randomR (-halfWidth, halfWidth) g1
         in (x, -halfHeight - buffer, g_temp)
-      2 -> -- Linkerrand
+      2 -> -- Left
         let (y, g_temp) = randomR (-halfHeight, halfHeight) g1
         in (-halfWidth - buffer, y, g_temp)
-      3 -> -- Rechterrand
+      3 -> -- Right
         let (y, g_temp) = randomR (-halfHeight, halfHeight) g1
         in (halfWidth + buffer, y, g_temp)
       _ -> (0, 0, g1)
@@ -247,20 +251,21 @@ getAsteroidScore a
 
 handleCollisions :: GameState -> GameState
 handleCollisions gs =
-  let (bs1, as1, sc1) = collideAll (bullets gs) (asteroids gs) (score gs)
+  let g_in = generator gs
+      (bs1, as1, sc1, g_out) = collideAll g_in (bullets gs) (asteroids gs) (score gs)
       (bs2, es1, sc2) = collideEnemies bs1 (enemies gs) sc1
       enemyHit        = any (\e -> dist (ePos e) (position (player gs)) < eSize e) es1
       asteroidHit     = any (\a -> dist (aPos a) (position (player gs)) < 10 + aSize a) as1
       shipHit         = enemyHit || asteroidHit
   in if shipHit
-     then initialState  {generator = generator gs} -- reset game if ship hit by enemy
-     else gs { bullets = bs2, asteroids = as1, enemies = es1, score = sc2 }
+     then initialState  {generator = g_out} -- reset game if ship hit by enemy
+     else gs { bullets = bs2, asteroids = as1, enemies = es1, score = sc2, generator = g_out}
 
 ------------------------------------------------------------
 -- Bullet vs Asteroid collisions
 ------------------------------------------------------------
-collideAll :: [Bullet] -> [Asteroid] -> Int -> ([Bullet], [Asteroid], Int)
-collideAll bs as sc =
+collideAll :: StdGen -> [Bullet] -> [Asteroid] -> Int -> ([Bullet], [Asteroid], Int, StdGen)
+collideAll g bs as sc =
   let hits = [ (b,a)
              | b <- bs, a <- as
              , dist (bPos b) (aPos a) < aSize a
@@ -269,20 +274,32 @@ collideAll bs as sc =
       hitAsteroids  = map snd hits
       bs'           = filter (`notElem` hitBullets) bs
       survivors     = filter (`notElem` hitAsteroids) as
-      splitChildren = concatMap splitAsteroid hitAsteroids
+      (splitChildren, g_out) = foldl splitAsteroidAndChain ([], g) hitAsteroids
       scoreIncrease = sum (map getAsteroidScore hitAsteroids)
       sc'           = sc + scoreIncrease
-  in (bs', survivors ++ splitChildren, sc')
+  in (bs', survivors ++ splitChildren, sc', g_out)
 
-splitAsteroid :: Asteroid -> [Asteroid]
-splitAsteroid a
-  | aSize a <= minAsteroidSize = []
+splitAsteroidAndChain :: ([(Asteroid)], StdGen) -> Asteroid -> ([(Asteroid)], StdGen)
+splitAsteroidAndChain (accAsteroids, g_in) a =
+  let (newAsteroids, g_out) = splitAsteroid g_in a
+  in (accAsteroids ++ newAsteroids, g_out ) 
+
+splitAsteroid :: StdGen -> Asteroid -> ([Asteroid], StdGen)
+splitAsteroid g a
+  | aSize a <= minAsteroidSize = ([], g)
   | otherwise =
       let (vx, vy) = aVel a
           newSize  = aSize a * splitFactor
-          a1 = a { aVel = ( vy, -vx ), aSize = newSize }
-          a2 = a { aVel = (-vy,  vx ), aSize = newSize }
-      in [a1, a2]
+
+          (r1, g1) = randomR (0.0, 360.0) g
+          (t1, g2) = randomR (1 :: Int, 7 :: Int) g1
+
+          (r2, g3) = randomR (0.0, 360.0) g2
+          (t2, g4) = randomR (1 :: Int, 7 :: Int) g3
+
+          a1 = a { aVel = ( vy, -vx ), aSize = newSize, aRotation = r1, aTexture = t1 }
+          a2 = a { aVel = (-vy,  vx ), aSize = newSize, aRotation = r2, aTexture = t2 }
+      in ([a1, a2], g4)
 
 ------------------------------------------------------------
 -- Bullet vs Enemy collisions

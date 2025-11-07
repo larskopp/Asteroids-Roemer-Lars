@@ -76,9 +76,11 @@ data Bullet = Bullet
 -- Asteroid
 ------------------------------------------------------------
 data Asteroid = Asteroid
-  { aPos  :: Point
-  , aVel  :: Vector
-  , aSize :: Float
+  { aPos       :: Point
+  , aVel       :: Vector
+  , aSize      :: Float
+  , aRotation  :: Float
+  , aTexture   :: Int
   } deriving (Show, Eq)
 
 ------------------------------------------------------------

@@ -8,19 +8,86 @@ import Model
 ------------------------------------------------------------
 darkRed :: Color
 darkRed = makeColor 0.7 0.0 0.0 1.0
+lightGrey :: Color
+lightGrey = makeColor 0.8 0.8 0.8 1.0 
+pauseOverlayColor :: Color
+pauseOverlayColor = makeColor 1.0 1.0 1.0 0.1
 
 ------------------------------------------------------------
 -- Main draw function
 ------------------------------------------------------------
 draw :: GameState -> Picture
-draw gs 
-  | lives gs <= 0 = drawGameOverScreen gs
-  | otherwise     = drawGame gs
+draw gs = 
+  case currentScreen gs of  
+    MainMenu          -> drawMainMenu gs
+    ControlsScreen    -> drawControlsScreen gs
+    GameScreen
+      | lives gs <= 0 -> drawGameOverScreen gs
+      | otherwise     -> drawGame gs
+
+------------------------------------------------------------
+-- Main Menu screen
+------------------------------------------------------------
+drawMainMenu :: GameState -> Picture
+drawMainMenu gs = pictures
+  [ drawStars (stars gs)
+
+  , drawMenuShip (menuShip gs)
+  , drawAsteroid (menuAsteroid gs)
+  , drawAsteroid (menuAsteroid2 gs)
+  , drawAsteroid (menuAsteroid3 gs)
+  , drawAsteroid (menuAsteroid4 gs)
+
+  , translate (-175) 150 $ scale 0.5 0.5 $ color white $ text "ASTEROIDS"
+  , translate (-80) 50 $ scale 0.15 0.15 $ color lightGrey $ text ("High Score: " ++ show (highScore gs))
+  , translate (-63) (-50) $ pictures 
+    [ 
+      translate (-80) (-10) $ scale 0.15 0.15 $ color white $ text "Press N for a New Game" 
+    ]
+  , translate (-53) (-150) $ pictures 
+    [ 
+      translate (-80) (-10) $ scale 0.15 0.15 $ color white $ text "Press C for the Controls" 
+    ]
+  ]
+  where
+    drawButton txt = pictures 
+      [ translate (-80) (-10) $ scale 0.15 0.15 $ color white $ text txt ]
+
+------------------------------------------------------------
+-- Controls Screen
+------------------------------------------------------------
+drawControlsScreen :: GameState -> Picture
+drawControlsScreen gs = pictures
+  [ drawStars (stars gs)
+
+  , drawMenuShip (menuShip gs)
+  , drawAsteroid (menuAsteroid gs)
+  , drawAsteroid (menuAsteroid2 gs)
+  , drawAsteroid (menuAsteroid3 gs)
+  , drawAsteroid (menuAsteroid4 gs)
+  
+  , translate (-300) 200 $ scale 0.3 0.3 $ color white $ text "CONTROLS"
+  
+  , translate (-300) 100 $ drawControl "W" "Thrust"
+  , translate (-300) 50 $ drawControl "A" "Rotate Left"
+  , translate (-300) 0 $ drawControl "D" "Rotate right"
+  , translate (-300) (-50) $ drawControl "Space" "Shoot"
+  , translate (-300) (-100) $ drawControl "P" "Pause / Resume"
+  
+  , translate (-250) (-200) $ scale 0.15 0.15 $ color lightGrey $ text "Press M to return to Main Menu"
+  ]
+  where
+    drawControl key action = pictures
+      [ translate 0 0 $ scale 0.15 0.15 $ color yellow $ text key
+      , translate 150 0 $ scale 0.15 0.15 $ color white $ text action
+      ]
 ------------------------------------------------------------
 -- Game draw
 ------------------------------------------------------------
 drawGame :: GameState -> Picture
-drawGame gs = pictures
+drawGame gs 
+  | isPaused gs = drawPauseScreen gs
+  | otherwise = pictures
   [ drawStars (stars gs)
   , drawShip (player gs)
   , pictures (map drawBullet (bullets gs))
@@ -40,22 +107,22 @@ drawGameOverScreen gs =
         currentScore = score gs
         highScoreVal = startHighScore gs
         isNewHighScore = currentScore > highScoreVal
-        
-        displayedHighScore = max currentScore highScoreVal
+        regularHighScoreText = "High Score: " ++ show highScoreVal
+        previousHighScoreText = "Previous High Score: " ++ show highScoreVal
 
-        oldHighScoreText = if currentScore > highScoreVal
-                           then "Previous High Score: " ++ show highScoreVal
-                           else "High Score: " ++ show highScoreVal
+        gameOverText = translate (-210) 150 $ scale 0.5 0.5 $ color white $ text "GAME OVER"
+        scoreText = translate (-80) 50 $ scale 0.2 0.2 $ color white $ text $ "Score: " ++ show currentScore
+        highScoreText = 
+            if isNewHighScore
+            then translate (-160) 0 $ scale 0.2 0.2 $ color white $ text previousHighScoreText
+            else translate (-120) 0 $ scale 0.2 0.2 $ color white $ text regularHighScoreText
+        newHighScoreBanner = translate (-190) (-80) $ scale 0.3 0.3 $ color yellow $ text "NEW HIGH SCORE!"
 
-        gameOverText = translate (-200) 150 $ scale 0.5 0.5 $ color white $ text "GAME OVER"
-
-        scoreText = translate (-150) 50 $ scale 0.2 0.2 $ color white $ text $ "SCORE: " ++ show currentScore
-
-        highScoreText = translate (-200) 0 $ scale 0.2 0.2 $ color white $ text oldHighScoreText
-
-        newHighScoreBanner = translate (-300) (-80) $ scale 0.3 0.3 $ color yellow $ text "NEW HIGH SCORE!"
-
-        restartText = translate (-250) (-200) $ scale 0.15 0.15 $ color (greyN 0.5) $ text "Press R to start a new game"
+        restartText = pictures
+          [
+            translate (-160) (-200) $ scale 0.15 0.15 $ color (greyN 0.5) $ text "Press N to start a new game"
+          , translate (-175) (-250) $ scale 0.15 0.15 $ color (greyN 0.5) $ text "Press M to return to Main Menu"
+          ]
 
         elements = [gameOverText, scoreText, highScoreText, restartText]
 
@@ -63,6 +130,17 @@ drawGameOverScreen gs =
 
     in pictures finalElements
     
+------------------------------------------------------------
+-- Pause Screen
+------------------------------------------------------------
+drawPauseScreen :: GameState -> Picture
+drawPauseScreen gs = pictures
+  [ drawGame (gs { isPaused = False })
+  , color pauseOverlayColor $ rectangleSolid windowWidth windowHeight
+  , translate (-180) 50 $ scale 0.7 0.7 $ color white $ text "PAUSED"
+  , translate (-100) (-50) $ scale 0.15 0.15 $ color lightGrey $ text "Press P to resume"
+  , translate (-170) (-100) $ scale 0.15 0.15 $ color lightGrey $ text "Press M to return to Main Menu"
+  ]
 
 ------------------------------------------------------------
 --Draw stars
@@ -138,6 +216,21 @@ drawThrust ship
 
   | otherwise = blank
 
+------------------------------------------------------------
+-- Menu Ship Drawing
+------------------------------------------------------------
+drawMenuShip :: Ship -> Picture
+drawMenuShip ship = 
+  translate x y $
+  rotate (-(angle ship)) $
+  scale 1.5 1.5 $
+  pictures 
+    [ drawThrust ship
+    , color white $ 
+      polygon [(-10,-10),(20,0),(-10,10)]
+    ]
+  where
+    (x, y) = position ship
 ------------------------------------------------------------
 -- Draw bullet
 ------------------------------------------------------------

@@ -9,6 +9,7 @@ import System.Random
 ------------------------------------------------------------
 step :: Float -> GameState -> GameState
 step dt gs
+  | currentScreen gs == MainMenu || currentScreen gs == ControlsScreen = updateMenu dt gs
   | isPaused gs = gs
   | otherwise   =
      let
@@ -24,6 +25,50 @@ step dt gs
          , enemies   = updateEnemies dt (player gs) (enemies gs)
          }
 
+------------------------------------------------------------
+-- Menu animation
+------------------------------------------------------------
+updateMenu :: Float -> GameState -> GameState
+updateMenu dt gs =
+    let 
+        halfW = windowWidth / 2
+        halfH = windowHeight / 2
+
+        ship = menuShip gs
+        (sx, sy) = position ship
+        (svx, svy) = velocity ship
+        sx' = sx + svx * dt -- FIX: Gebruik svx en svy
+        sy' = sy + svy * dt
+
+        ship' = if sx' > halfW + 50 || sy' < -halfH - 50
+                then ship { position = (-halfW - 50, 150), angle = -30, thrusting = True }
+                else ship { position = (sx', sy'), angle = -30, thrusting = True }
+
+        updateAndRespawnAsteroid a resetPos resetRot =
+          let 
+              (ax, ay) = aPos a
+              (avx, avy) = aVel a
+              ax' = ax + avx * dt
+              ay' = ay + avy * dt
+              aRot' = aRotation a + dt * 10
+              
+              -- Respawn conditie: buiten links/rechts of boven/onder
+              isOutside = ax' < -halfW - 100 || ax' > halfW + 100 || ay' < -halfH - 100 || ay' > halfH + 100
+          in 
+              if isOutside
+              then a { aPos = resetPos, aRotation = resetRot }
+              else a { aPos = (ax', ay'), aRotation = aRot' }
+
+        a1' = updateAndRespawnAsteroid (menuAsteroid gs)  (halfW + 100, -100) 0
+        a2' = updateAndRespawnAsteroid (menuAsteroid2 gs) (-halfW - 100, 200) 45
+        a3' = updateAndRespawnAsteroid (menuAsteroid3 gs) (100, halfH + 100) 90
+        a4' = updateAndRespawnAsteroid (menuAsteroid4 gs) (-200, -halfH - 50) (-45)
+                    
+    in gs { menuShip = ship', 
+            menuAsteroid = a1',
+            menuAsteroid2 = a2',
+            menuAsteroid3 = a3',
+            menuAsteroid4 = a4' }
 
 ------------------------------------------------------------
 -- Ship movement
@@ -271,7 +316,8 @@ resetPlayer gs =
                     score = currentScore,
                     highScore = newHighScore,
                     lives = 0,
-                    isPaused  = True
+                    isPaused  = True,
+                    currentScreen = GameScreen
                     }
     
     respawnState = gs { 

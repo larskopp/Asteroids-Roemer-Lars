@@ -26,7 +26,7 @@ bulletLifetime = 1.0  -- seconds
 -- Asteroid splitting constants
 ------------------------------------------------------------
 minAsteroidSize, splitFactor :: Float
-minAsteroidSize = 20     -- smallest asteroid radius before it stops splitting
+minAsteroidSize = 30     -- smallest asteroid radius before it stops splitting
 splitFactor     = 0.6    -- size ratio for child asteroids
 
 ------------------------------------------------------------
@@ -38,6 +38,10 @@ enemySpawnScore = 500     -- spawn an enemy after this score
 enemySpeed :: Float
 enemySpeed = 70          -- pixels per second
 
+------------------------------------------------------------
+-- Screen State
+------------------------------------------------------------
+data Screen = MainMenu | ControlsScreen | GameScreen deriving (Show, Eq)
 ------------------------------------------------------------
 -- Game model
 ------------------------------------------------------------
@@ -55,6 +59,12 @@ data GameState = GameState
   , lives           :: Int
   , highScore       :: Int 
   , startHighScore  :: Int
+  , currentScreen   :: Screen
+  , menuShip        :: Ship
+  , menuAsteroid    :: Asteroid
+  , menuAsteroid2   :: Asteroid
+  , menuAsteroid3   :: Asteroid
+  , menuAsteroid4   :: Asteroid
   } deriving (Show, Eq)
 
 ------------------------------------------------------------
@@ -118,6 +128,13 @@ initialState =
           in ((x, y) : rest, g_final)
 
       (starList, finalGen) = generateStars 200 g
+
+      startMenuShip = Ship { position = (-halfW - 50, 100), velocity = (40, -20), angle = -30, thrusting = True }
+      startA1 = Asteroid { aPos = (halfW + 100, -100), aVel = (-30, 0), aSize = 40, aRotation = 0, aTexture = 2 }
+      startA2 = Asteroid { aPos = (-halfW - 100, 200), aVel = (35, -15), aSize = 60, aRotation = 45, aTexture = 5 }
+      startA3 = Asteroid { aPos = (100, halfH + 100), aVel = (-20, -40), aSize = 50, aRotation = 90, aTexture = 7 }
+      startA4 = Asteroid { aPos = (-100, -halfH - 50), aVel = (15, 25), aSize = 25, aRotation = -45, aTexture = 1 }
+
   in GameState
     { player          = Ship { position = (0, 0)
                         , velocity = (0, 0)
@@ -138,7 +155,21 @@ initialState =
     , lives           = 3
     , highScore       = 0
     , startHighScore  = 0
+    , currentScreen   = MainMenu
+    , menuShip        = startMenuShip
+    , menuAsteroid    = startA1
+    , menuAsteroid2   = startA2
+    , menuAsteroid3   = startA3
+    , menuAsteroid4   = startA4
     }
+
+newGameState :: GameState -> GameState
+newGameState gs = initialState 
+  { highScore = highScore gs
+  , startHighScore = highScore gs
+  , currentScreen = GameScreen
+  , lives = 3
+  }
 
 ------------------------------------------------------------
 -- Initial asteroids

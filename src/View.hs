@@ -13,16 +13,56 @@ darkRed = makeColor 0.7 0.0 0.0 1.0
 -- Main draw function
 ------------------------------------------------------------
 draw :: GameState -> Picture
-draw gs = pictures
+draw gs 
+  | lives gs <= 0 = drawGameOverScreen gs
+  | otherwise     = drawGame gs
+------------------------------------------------------------
+-- Game draw
+------------------------------------------------------------
+drawGame :: GameState -> Picture
+drawGame gs = pictures
   [ drawStars (stars gs)
-  ,  drawShip (player gs)
+  , drawShip (player gs)
   , pictures (map drawBullet (bullets gs))
   , pictures (map drawAsteroid (asteroids gs))
   , pictures (map drawEnemy (enemies gs))
   , drawScore (score gs)
   , drawLives (lives gs)
-  , drawHighScore (highscore gs)
+  , drawHighScore (highScore gs)
   ]
+
+------------------------------------------------------------
+-- Game Over screen
+------------------------------------------------------------
+drawGameOverScreen :: GameState -> Picture
+drawGameOverScreen gs =
+    let 
+        currentScore = score gs
+        highScoreVal = startHighScore gs
+        isNewHighScore = currentScore > highScoreVal
+        
+        displayedHighScore = max currentScore highScoreVal
+
+        oldHighScoreText = if currentScore > highScoreVal
+                           then "Previous High Score: " ++ show highScoreVal
+                           else "High Score: " ++ show highScoreVal
+
+        gameOverText = translate (-200) 150 $ scale 0.5 0.5 $ color white $ text "GAME OVER"
+
+        scoreText = translate (-150) 50 $ scale 0.2 0.2 $ color white $ text $ "SCORE: " ++ show currentScore
+
+        highScoreText = translate (-200) 0 $ scale 0.2 0.2 $ color white $ text oldHighScoreText
+
+        newHighScoreBanner = translate (-300) (-80) $ scale 0.3 0.3 $ color yellow $ text "NEW HIGH SCORE!"
+
+        restartText = translate (-250) (-200) $ scale 0.15 0.15 $ color (greyN 0.5) $ text "Press R to start a new game"
+
+        elements = [gameOverText, scoreText, highScoreText, restartText]
+
+        finalElements = if currentScore > highScoreVal then newHighScoreBanner : elements else elements
+
+    in pictures finalElements
+    
 
 ------------------------------------------------------------
 --Draw stars
@@ -175,7 +215,7 @@ drawScore sc =
   text ("Score: " ++ show sc)
 
 ------------------------------------------------------------
--- Draw highscore
+-- Draw high score
 ------------------------------------------------------------
 drawHighScore :: Int -> Picture
 drawHighScore hsc =

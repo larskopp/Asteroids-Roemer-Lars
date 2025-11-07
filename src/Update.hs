@@ -258,7 +258,7 @@ resetPlayer gs =
   let 
     newLives = lives gs - 1
     currentScore = score gs
-    newHighScore = max (highscore gs) currentScore
+    newHighScore = max (highScore gs) currentScore
     
     isGameOver = newLives <= 0
     
@@ -267,7 +267,11 @@ resetPlayer gs =
     gameOverState = baseState 
                     { 
                     generator = generator gs,
-                    highscore = newHighScore
+                    startHighScore = highScore gs,
+                    score = currentScore,
+                    highScore = newHighScore,
+                    lives = 0,
+                    isPaused  = True
                     }
     
     respawnState = gs { 
@@ -280,7 +284,7 @@ resetPlayer gs =
       },
       bullets = [], 
       lives = newLives,
-      highscore = highscore gs
+      highScore = highScore gs
     }
     
   in if isGameOver

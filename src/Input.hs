@@ -4,40 +4,60 @@ import Graphics.Gloss.Interface.Pure.Game
 import Model
 
 handleInput :: Event -> GameState -> GameState
-handleInput ev gs = case ev of
-  -- Pause
-  EventKey (Char 'p') Down _ _ ->
-    gs { isPaused = not (isPaused gs) }
+handleInput ev gs = 
+  case ev of
+    
+    -- Restart (R)
+    EventKey (Char 'r') Down _ _ -> handleRestart gs
+    EventKey (Char 'R') Down _ _ -> handleRestart gs
+    
+    -- Pause Toggle (P)
+    EventKey (Char 'p') Down _ _ -> togglePause gs
+    EventKey (Char 'P') Down _ _ -> togglePause gs
 
-  EventKey (Char 'P') Down _ _ ->
-    gs { isPaused = not (isPaused gs) }
+    _ -> 
+      if isPaused gs
+      then gs 
+      else handleRunningInput ev gs
 
-  -- Rotate left/right (A/D)
-  EventKey (Char 'a') Down _ _ -> setAngularV  200 gs   -- left
-  EventKey (Char 'd') Down _ _ -> setAngularV (-200) gs -- right
-  EventKey (Char 'a') Up   _ _ -> stopTurn gs  200
-  EventKey (Char 'd') Up   _ _ -> stopTurn gs (-200)
+handleRunningInput :: Event -> GameState -> GameState
+handleRunningInput ev gs = case ev of
+   -- Rotate left/right (A/D)
+   EventKey (Char 'a') Down _ _ -> setAngularV  200 gs    -- left
+   EventKey (Char 'd') Down _ _ -> setAngularV (-200) gs  -- right
+   EventKey (Char 'a') Up   _ _ -> stopTurn gs  200
+   EventKey (Char 'd') Up   _ _ -> stopTurn gs (-200)
 
-  EventKey (Char 'A') Down _ _ -> setAngularV  200 gs   -- left
-  EventKey (Char 'D') Down _ _ -> setAngularV (-200) gs -- right
-  EventKey (Char 'A') Up   _ _ -> stopTurn gs  200
-  EventKey (Char 'D') Up   _ _ -> stopTurn gs (-200)
+   EventKey (Char 'A') Down _ _ -> setAngularV  200 gs    -- left
+   EventKey (Char 'D') Down _ _ -> setAngularV (-200) gs  -- right
+   EventKey (Char 'A') Up   _ _ -> stopTurn gs  200
+   EventKey (Char 'D') Up   _ _ -> stopTurn gs (-200)
 
-  -- Thrust toggle
-  EventKey (Char 'w') Down _ _ -> gs { player = (player gs) { thrusting = True } }
-  EventKey (Char 'w') Up   _ _ -> gs { player = (player gs) { thrusting = False } }
+   -- Thrust toggle (W)
+   EventKey (Char 'w') Down _ _ -> gs { player = (player gs) { thrusting = True } }
+   EventKey (Char 'w') Up   _ _ -> gs { player = (player gs) { thrusting = False } }
 
-  EventKey (Char 'W') Down _ _ -> gs { player = (player gs) { thrusting = True } }
-  EventKey (Char 'W') Up   _ _ -> gs { player = (player gs) { thrusting = False } }
+   EventKey (Char 'W') Down _ _ -> gs { player = (player gs) { thrusting = True } }
+   EventKey (Char 'W') Up   _ _ -> gs { player = (player gs) { thrusting = False } }
 
-  -- Shooting
-  EventKey (SpecialKey KeySpace) Down _ _ -> shootBullet gs
+   -- Shooting (Space)
+   EventKey (SpecialKey KeySpace) Down _ _ -> shootBullet gs
 
-  _ -> gs
+   _ -> gs
 
 ------------------------------------------------------------
 -- Helpers
 ------------------------------------------------------------
+handleRestart :: GameState -> GameState
+handleRestart gs
+  | isPaused gs && lives gs <= 0 = initialState { highScore = highScore gs } -- Reset game but keep high score
+  | otherwise                    = gs
+
+togglePause :: GameState -> GameState
+togglePause gs
+  | lives gs <= 0 = gs 
+  | otherwise     = gs { isPaused = not (isPaused gs) }
+
 setAngularV :: Float -> GameState -> GameState
 setAngularV av gs = gs { player = (player gs) { angularV = av } }
 

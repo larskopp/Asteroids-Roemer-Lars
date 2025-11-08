@@ -66,6 +66,7 @@ data GameState = GameState
   , enemies           :: [Enemy]
   , shooters          :: [Shooter]
   , enemyBullets      :: [EnemyBullet]
+  , explosions        :: [Explosion]
   , score             :: Int
   , isPaused          :: Bool
   , spawnTimer        :: Float
@@ -139,6 +140,15 @@ data Shooter = Shooter
   } deriving (Show, Eq)
 
 ------------------------------------------------------------
+-- Explosion
+--------------------------------------------
+data Explosion = Explosion
+  { exPos :: Point
+  , exTime :: Float
+  , exSize :: Float
+  } deriving (Show, Eq)
+
+------------------------------------------------------------
 -- Initial state
 ------------------------------------------------------------
 initialState :: GameState
@@ -178,6 +188,7 @@ initialState =
     , enemies           = []     -- no enemies at start
     , shooters          = []
     , enemyBullets      = []
+    , explosions        = []
     , score             = 0
     , isPaused          = False
     , spawnTimer        = 1.0

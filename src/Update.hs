@@ -23,6 +23,7 @@ step dt gs
             , asteroids    = updateAsteroids dt (asteroids gs)
             , enemies      = updateEnemies dt (player gs) (enemies gs)
             , enemyBullets = updateEnemyBullets dt (enemyBullets gs)
+            , explosions = updateExplosions dt (explosions gs)
             }
 
         gs_combined_updates = gs_physics { 
@@ -133,6 +134,17 @@ moveEnemyBullet dt b =
       x' = x + vx * dt 
       y' = y + vy * dt
   in b { ebPos = (x', y'), ebTime = ebTime b + dt }
+
+------------------------------------------------------------
+-- Explosions
+------------------------------------------------------------
+updateExplosions :: Float -> [Explosion] -> [Explosion]
+updateExplosions dt =
+  filter ((< explosionLifetime) . exTime)
+  . map (advanceExplosion dt)
+
+advanceExplosion :: Float -> Explosion -> Explosion
+advanceExplosion dt ex = ex { exTime = exTime ex + dt }
 ------------------------------------------------------------
 -- Asteroids
 ------------------------------------------------------------
@@ -437,7 +449,14 @@ resetPlayer gs =
     newHighScore = max (highScore gs) currentScore
     
     isGameOver = newLives <= 0
-    
+
+    crashPosition = position (player gs)    
+    newExplosion = Explosion
+        {exPos = crashPosition
+        , exTime = 0.0
+        , exSize = 35
+        }
+
     baseState = initialState
     
     gameOverState = baseState 
@@ -463,6 +482,7 @@ resetPlayer gs =
       enemies = enemies gs, 
       shooters = shooters gs, 
       enemyBullets = [], 
+      explosions = newExplosion : explosions gs,
       lives = newLives,
       highScore = highScore gs, 
       startHighScore = startHighScore gs

@@ -107,6 +107,7 @@ drawGame gs
   , pictures (map drawEnemy (enemies gs))
   , pictures (map drawShooter (shooters gs))
   , pictures (map drawEnemyBullet (enemyBullets gs))
+  , pictures (map drawExplosion (explosions gs))
   , drawScore (score gs)
   , drawLives (lives gs)
   , drawHighScore (highScore gs)
@@ -263,6 +264,50 @@ drawEnemyBullet eb =
   circleSolid 5
   where
     (x, y) = ebPos eb
+
+------------------------------------------------------------
+-- Draw Explosion
+--------------------------------------------
+drawExplosion :: Explosion -> Picture
+drawExplosion ex =
+  let
+    (px, py) = exPos ex
+    time = exTime ex
+    t = time / explosionLifetime 
+    
+    scaleFactor = 1.0 + t * 2.0
+    opacity = 1.0 - t           
+    
+    getParticleColor p = 
+        case p `mod` 3 of
+            0 -> red
+            1 -> yellow
+            2 -> orange
+            _ -> white
+        
+    particleCount = 24
+    maxRadius     = 20.0
+
+    particles = [
+        let 
+          p_float = fromIntegral p
+          angle_rad = p_float * 2 * pi / fromIntegral particleCount
+          
+          distance = t * maxRadius
+
+          p_x = cos angle_rad * distance
+          p_y = sin angle_rad * distance
+          pixelSize_t = 3.0 * (1.0 - t * 0.7)
+        in
+        translate px py $
+        color (getParticleColor p) $
+        translate p_x p_y $
+        rectangleSolid pixelSize_t pixelSize_t 
+        | p <- [0..particleCount - 1]
+      ]
+      
+  in pictures particles
+
 
 ------------------------------------------------------------
 -- Draw asteroid

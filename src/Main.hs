@@ -13,7 +13,7 @@ background :: Color
 background = black
 
 fps :: Int
-fps = 120
+fps = 60
 
 main :: IO ()
 main = play window background fps initialState draw handleInput step

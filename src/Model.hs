@@ -17,11 +17,19 @@ invincibilityDuration :: Float
 invincibilityDuration = 2.0
 
 ------------------------------------------------------------
+-- Explosion settings
+------------------------------------------------------------
+explosionLifetime :: Float 
+explosionLifetime = 1 -- 1 second animation
+
+------------------------------------------------------------
 -- Bullet settings
 ------------------------------------------------------------
 bulletLifetime :: Float
-bulletLifetime = 1.0  -- seconds
+bulletLifetime = 2.0  -- seconds
 
+enemyBulletSpeed :: Float
+enemyBulletSpeed = 250
 ------------------------------------------------------------
 -- Asteroid splitting constants
 ------------------------------------------------------------
@@ -33,10 +41,16 @@ splitFactor     = 0.6    -- size ratio for child asteroids
 -- Enemy behavior constants
 ------------------------------------------------------------
 enemySpawnScore :: Int
-enemySpawnScore = 500     -- spawn an enemy after this score
+enemySpawnScore = 500     -- spawn a Chaser after this score
+
+shooterSpawnScore :: Int
+shooterSpawnScore = 1500   -- spawn a Shooter after this score
 
 enemySpeed :: Float
 enemySpeed = 70          -- pixels per second
+
+shooterFireRate :: Float
+shooterFireRate = 1.0    -- Fires once every second
 
 ------------------------------------------------------------
 -- Screen State
@@ -46,25 +60,28 @@ data Screen = MainMenu | ControlsScreen | GameScreen deriving (Show, Eq)
 -- Game model
 ------------------------------------------------------------
 data GameState = GameState
-  { player          :: Ship
-  , bullets         :: [Bullet]
-  , asteroids       :: [Asteroid]
-  , enemies         :: [Enemy]
-  , score           :: Int
-  , isPaused        :: Bool
-  , spawnTimer      :: Float
-  , enemySpawnTimer :: Float
-  , generator       :: StdGen
-  , stars           :: [Point]
-  , lives           :: Int
-  , highScore       :: Int 
-  , startHighScore  :: Int
-  , currentScreen   :: Screen
-  , menuShip        :: Ship
-  , menuAsteroid    :: Asteroid
-  , menuAsteroid2   :: Asteroid
-  , menuAsteroid3   :: Asteroid
-  , menuAsteroid4   :: Asteroid
+  { player            :: Ship
+  , bullets           :: [Bullet]
+  , asteroids         :: [Asteroid]
+  , enemies           :: [Enemy]
+  , shooters          :: [Shooter]
+  , enemyBullets      :: [EnemyBullet]
+  , score             :: Int
+  , isPaused          :: Bool
+  , spawnTimer        :: Float
+  , enemySpawnTimer   :: Float
+  , shooterSpawnTimer :: Float
+  , generator         :: StdGen
+  , stars             :: [Point]
+  , lives             :: Int
+  , highScore         :: Int 
+  , startHighScore    :: Int
+  , currentScreen     :: Screen
+  , menuShip          :: Ship
+  , menuAsteroid      :: Asteroid
+  , menuAsteroid2     :: Asteroid
+  , menuAsteroid3     :: Asteroid
+  , menuAsteroid4     :: Asteroid
   } deriving (Show, Eq)
 
 ------------------------------------------------------------
@@ -88,6 +105,12 @@ data Bullet = Bullet
   , bTime :: Float
   } deriving (Show, Eq)
 
+data EnemyBullet = EnemyBullet
+  { ebPos  :: Point
+  , ebVel  :: Vector
+  , ebTime :: Float
+  } deriving (Show, Eq)
+
 ------------------------------------------------------------
 -- Asteroid
 ------------------------------------------------------------
@@ -106,6 +129,13 @@ data Enemy = Enemy
   { ePos :: Point
   , eVel :: Vector
   , eSize :: Float
+  } deriving (Show, Eq)
+
+data Shooter = Shooter
+  { sPos :: Point
+  , sVel :: Vector
+  , sSize :: Float
+  , sFireTimer :: Float
   } deriving (Show, Eq)
 
 ------------------------------------------------------------
@@ -136,31 +166,34 @@ initialState =
       startA4 = Asteroid { aPos = (-100, -halfH - 50), aVel = (15, 25), aSize = 25, aRotation = -45, aTexture = 1 }
 
   in GameState
-    { player          = Ship { position = (0, 0)
-                        , velocity = (0, 0)
-                        , angle = 90
-                        , angularV = 0
-                        , thrusting = False
-                        , iTimer = 0.0
-                        }
-    , bullets         = []
-    , asteroids       = initialAsteroids
-    , enemies         = []     -- no enemies at start
-    , score           = 0
-    , isPaused        = False
-    , spawnTimer      = 1.0
-    , enemySpawnTimer = 1.0
-    , generator       = g 
-    , stars           = starList
-    , lives           = 3
-    , highScore       = 0
-    , startHighScore  = 0
-    , currentScreen   = MainMenu
-    , menuShip        = startMenuShip
-    , menuAsteroid    = startA1
-    , menuAsteroid2   = startA2
-    , menuAsteroid3   = startA3
-    , menuAsteroid4   = startA4
+    { player            = Ship { position = (0, 0)
+                          , velocity = (0, 0)
+                          , angle = 90
+                          , angularV = 0
+                          , thrusting = False
+                          , iTimer = 0.0
+                          }
+    , bullets           = []
+    , asteroids         = []
+    , enemies           = []     -- no enemies at start
+    , shooters          = []
+    , enemyBullets      = []
+    , score             = 0
+    , isPaused          = False
+    , spawnTimer        = 1.0
+    , enemySpawnTimer   = 1.0
+    , shooterSpawnTimer = 1.0
+    , generator         = g 
+    , stars             = starList
+    , lives             = 3
+    , highScore         = 0
+    , startHighScore    = 0
+    , currentScreen     = MainMenu
+    , menuShip          = startMenuShip
+    , menuAsteroid      = startA1
+    , menuAsteroid2     = startA2
+    , menuAsteroid3     = startA3
+    , menuAsteroid4     = startA4
     }
 
 newGameState :: GameState -> GameState
@@ -171,13 +204,4 @@ newGameState gs = initialState
   , lives = 3
   }
 
-------------------------------------------------------------
--- Initial asteroids
-------------------------------------------------------------
-initialAsteroids :: [Asteroid]
-initialAsteroids = []
 
-  --[ Asteroid { aPos = (150, 100),  aVel = (-30,  20), aSize = 40 }
-  --, Asteroid { aPos = (-200, -150), aVel = (40, -15), aSize = 60 }
-  --, Asteroid { aPos = (100, -200), aVel = (-25,  30), aSize = 50 }
-  --]

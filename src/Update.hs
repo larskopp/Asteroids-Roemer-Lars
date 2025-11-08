@@ -3,6 +3,7 @@ module Update (step) where
 import Graphics.Gloss
 import Model
 import System.Random
+import Data.List (foldl')
 
 ------------------------------------------------------------
 -- Main step function
@@ -12,18 +13,30 @@ step dt gs
   | currentScreen gs == MainMenu || currentScreen gs == ControlsScreen = updateMenu dt gs
   | isPaused gs = gs
   | otherwise   =
-     let
-     player' = (player gs) {iTimer = max 0 (iTimer (player gs) - dt) }
-     gs' = gs {player = player'}
-     in
-      handleCollisions $
-      (spawnAsteroid dt) $
-      (spawnEnemies dt) $
-      gs { player    = moveShip dt (player')
-         , bullets   = updateBullets dt (bullets gs)
-         , asteroids = updateAsteroids dt (asteroids gs)
-         , enemies   = updateEnemies dt (player gs) (enemies gs)
-         }
+      let
+        player_updated_timer = (player gs) {iTimer = max 0 (iTimer (player gs) - dt) }
+        (shooters', newEnemyBullets, g') = updateShooters dt (player gs) (shooters gs) (enemyBullets gs) (generator gs)
+
+        gs_physics = gs {
+              player       = moveShip dt player_updated_timer
+            , bullets      = updateBullets dt (bullets gs)
+            , asteroids    = updateAsteroids dt (asteroids gs)
+            , enemies      = updateEnemies dt (player gs) (enemies gs)
+            , enemyBullets = updateEnemyBullets dt (enemyBullets gs)
+            }
+
+        gs_combined_updates = gs_physics { 
+             shooters = shooters', 
+             enemyBullets = newEnemyBullets ++ (enemyBullets gs_physics), 
+             generator = g' 
+        }
+
+      in
+       handleCollisions $
+       (spawnAsteroid dt) $ -- Asteroid spawner
+       (spawnEnemies dt) $ -- Chaser spawner
+       (spawnShooters dt) $ -- Shooter spawner
+       gs_combined_updates
 
 ------------------------------------------------------------
 -- Menu animation
@@ -37,7 +50,7 @@ updateMenu dt gs =
         ship = menuShip gs
         (sx, sy) = position ship
         (svx, svy) = velocity ship
-        sx' = sx + svx * dt -- FIX: Gebruik svx en svy
+        sx' = sx + svx * dt
         sy' = sy + svy * dt
 
         ship' = if sx' > halfW + 50 || sy' < -halfH - 50
@@ -52,7 +65,6 @@ updateMenu dt gs =
               ay' = ay + avy * dt
               aRot' = aRotation a + dt * 10
               
-              -- Respawn conditie: buiten links/rechts of boven/onder
               isOutside = ax' < -halfW - 100 || ax' > halfW + 100 || ay' < -halfH - 100 || ay' > halfH + 100
           in 
               if isOutside
@@ -109,6 +121,18 @@ moveBullet dt b =
       y' = wrap windowHeight (y + vy * dt)
   in b { bPos = (x', y'), bTime = bTime b + dt }
 
+updateEnemyBullets :: Float -> [EnemyBullet] -> [EnemyBullet]
+updateEnemyBullets dt =
+  filter ((< bulletLifetime) . ebTime)
+  . map (moveEnemyBullet dt)
+
+moveEnemyBullet :: Float -> EnemyBullet -> EnemyBullet
+moveEnemyBullet dt b =
+  let (x, y) = ebPos b
+      (vx, vy) = ebVel b
+      x' = x + vx * dt 
+      y' = y + vy * dt
+  in b { ebPos = (x', y'), ebTime = ebTime b + dt }
 ------------------------------------------------------------
 -- Asteroids
 ------------------------------------------------------------
@@ -152,11 +176,7 @@ newAsteroid g =
     halfWidth  = windowWidth / 2
     halfHeight = windowHeight / 2
     buffer = 100.0
-
-    -- Genereer de willekeurige rand (gebruikt g, geeft g1 terug)
     (edge, g1) = randomR (0 :: Int, 3) g
-
-    -- Gebruik de generator in de return, en de inkomende g1 voor de randomR calls
     (startX, startY, g2) = case edge of
       0 -> -- Top
         let (x, g_next) = randomR (-halfWidth, halfWidth) g1
@@ -196,8 +216,8 @@ newAsteroid g =
   in (Asteroid { aPos = startPos
                , aVel = (velX, velY)
                , aSize = size
-               , aRotation = randRot  -- Veld toevoegen
-               , aTexture = randTex   -- Veld toevoegen
+               , aRotation = randRot 
+               , aTexture = randTex
                }, g8)
 
 
@@ -209,7 +229,7 @@ moveAsteroid dt a =
       y' = wrap windowHeight (y + vy * dt)
   in a { aPos = (x', y') }
 ------------------------------------------------------------
--- Enemies
+-- Chaser enemy
 ------------------------------------------------------------
 updateEnemies :: Float -> Ship -> [Enemy] -> [Enemy]
 updateEnemies dt ship = map (chasePlayer dt (position ship))
@@ -288,6 +308,117 @@ spawnEnemies dt gs
         else gs { enemySpawnTimer = newTimer}
   | otherwise = gs
 
+------------------------------------------------------------
+-- Shooter enemy
+------------------------------------------------------------
+updateShooters :: Float -> Ship -> [Shooter] -> [EnemyBullet] -> StdGen -> ([Shooter], [EnemyBullet], StdGen)
+updateShooters dt ship shooters enemyBullets g = 
+  let
+      (shooters_and_bullets_rev, g_out) = foldl' processShooter ([], g) shooters
+      
+      processShooter (acc_shooters_and_bullets, gen) s =
+        let 
+            (sx, sy) = sPos s
+            (svx, svy) = sVel s
+            sx' = wrap windowWidth (sx + svx * dt)
+            sy' = wrap windowHeight (sy + svy * dt)
+            
+            s_timed = s { sPos = (sx', sy'), sFireTimer = sFireTimer s - dt }
+
+            is_firing = sFireTimer s_timed <= 0
+            (newBullets, gen') = if is_firing 
+                                 then shootFromShooter s_timed ship gen
+                                 else ([], gen)
+            
+            s_final = if is_firing 
+                      then 
+                        let overshoot = 0 - sFireTimer s_timed
+                        in s_timed { sFireTimer = shooterFireRate - overshoot } 
+                      else s_timed
+            
+        in ( (s_final, newBullets) : acc_shooters_and_bullets, gen')
+
+      shooters' = reverse $ map fst shooters_and_bullets_rev
+      allNewBullets = concatMap snd shooters_and_bullets_rev
+      
+  in (shooters', allNewBullets, g_out)
+
+shootFromShooter :: Shooter -> Ship -> StdGen -> ([EnemyBullet], StdGen)
+shootFromShooter s ship g =
+    let 
+        (sx, sy) = sPos s
+        (px, py) = position ship
+        
+        dx = px - sx
+        dy = py - sy
+        
+        magnitude = sqrt (dx*dx + dy*dy) + 1 
+        
+        velX = enemyBulletSpeed * dx / magnitude
+        velY = enemyBulletSpeed * dy / magnitude
+        
+        newBullet = EnemyBullet { ebPos = (sx, sy), ebVel = (velX, velY), ebTime = 0 }
+    in ([newBullet], g)
+
+getNewShooterSpawnRate :: StdGen -> Int -> (Float, StdGen)
+getNewShooterSpawnRate g currentScore =
+  let
+    minTime = 5.0
+    maxTime = 10.0
+    scoreFactor = min (fromIntegral currentScore / 20000.0) 1.0 
+    upperBound = maxTime - (maxTime - minTime) * scoreFactor
+  in randomR (minTime, upperBound) g
+
+
+spawnShooters :: Float -> GameState -> GameState
+spawnShooters dt gs
+  | score gs >= shooterSpawnScore && null (shooters gs) = -- Spawn shooter
+    let 
+      newTimer = shooterSpawnTimer gs - dt
+    in 
+      if newTimer <=0 
+        then 
+          let 
+            g = generator gs
+            sc = score gs
+            (nextSpawnTime, g1) = getNewShooterSpawnRate g sc
+            (newS, g2) = newShooter g1 
+          in
+            gs { shooters = [newS]
+               , shooterSpawnTimer = nextSpawnTime 
+               , generator = g2 }
+        else gs { shooterSpawnTimer = newTimer}
+  | otherwise = gs
+
+newShooter :: StdGen -> (Shooter, StdGen)
+newShooter g =
+  let
+    halfWidth  = windowWidth / 2
+    halfHeight = windowHeight / 2
+    buffer = 100.0
+    sSize = 30.0 
+    sSpeed = 50.0
+    
+    (edge, g1) = randomR (0 :: Int, 3) g
+
+    -- Spawnposition at the edge
+    (startX, startY, g2) = case edge of
+      0 -> let (x, g_next) = randomR (-halfWidth, halfWidth) g1 in (x, halfHeight + buffer, g_next)
+      1 -> let (x, g_next) = randomR (-halfWidth, halfWidth) g1 in (x, -halfHeight - buffer, g_next)
+      2 -> let (y, g_next) = randomR (-halfHeight, halfHeight) g1 in (-halfWidth - buffer, y, g_next)
+      3 -> let (y, g_next) = randomR (-halfHeight, halfHeight) g1 in (halfWidth + buffer, y, g_next)
+      _ -> (0, 0, g1)
+    (targetX, g3) = randomR (-halfWidth, halfWidth) g2
+    (targetY, g4) = randomR (-halfHeight, halfHeight) g3
+    
+    dx = targetX - startX
+    dy = targetY - startY
+    magnitude = sqrt (dx*dx + dy*dy)
+    velX = sSpeed * (dx / magnitude)
+    velY = sSpeed * (dy / magnitude)
+    
+    startPos = (startX, startY)
+  in (Shooter { sPos = startPos, sVel = (velX, velY), sSize = sSize, sFireTimer = shooterFireRate }, g4)
 
 ------------------------------------------------------------
 -- Asteroid Score, Collisions and splitting
@@ -295,7 +426,7 @@ spawnEnemies dt gs
 getAsteroidScore :: Asteroid -> Int
 getAsteroidScore a
     | aSize a >= 40.0 = 20    -- big asteroid 
-    | aSize a >= 25.0 = 50    -- medium asteroid
+    | aSize a >= 30.0 = 50    -- medium asteroid
     | otherwise       = 100   -- small asteroid
 
 resetPlayer :: GameState -> GameState
@@ -329,8 +460,12 @@ resetPlayer gs =
         iTimer = invincibilityDuration
       },
       bullets = [], 
+      enemies = enemies gs, 
+      shooters = shooters gs, 
+      enemyBullets = [], 
       lives = newLives,
-      highScore = highScore gs
+      highScore = highScore gs, 
+      startHighScore = startHighScore gs
     }
     
   in if isGameOver
@@ -342,16 +477,26 @@ handleCollisions gs =
   let g_in = generator gs
       (bs1, as1, sc1, g_out) = collideAll g_in (bullets gs) (asteroids gs) (score gs)
       (bs2, es1, sc2) = collideEnemies bs1 (enemies gs) sc1
+      (bs3, ss1, sc3) = collideShooters bs2 (shooters gs) sc2
 
       isVulnerable    = iTimer (player gs) <=0
       enemyHit        = any (\e -> dist (ePos e) (position (player gs)) < eSize e) es1
+      shooterHit      = any (\s -> dist (sPos s) (position (player gs)) < sSize s) ss1
+      (enemyBullet, enemyBulletHit) = collidePlayerWithEnemyBullets (enemyBullets gs) (player gs)
       asteroidHit     = any (\a -> dist (aPos a) (position (player gs)) < 10 + aSize a) as1
-      shipHit         = enemyHit || asteroidHit
+      shipHit         = enemyHit || asteroidHit || shooterHit || enemyBulletHit
 
-      newState        = gs { bullets = bs2, asteroids = as1, enemies = es1, score = sc2, generator = g_out}
+      newState        = gs { bullets = bs3, asteroids = as1, enemies = es1, shooters = ss1,
+                             enemyBullets = enemyBullet, score = sc3, generator = g_out}
   in if shipHit && isVulnerable
      then resetPlayer  newState -- reset player if ship hit by enemy
      else newState
+
+collidePlayerWithEnemyBullets :: [EnemyBullet] -> Ship -> ([EnemyBullet], Bool)
+collidePlayerWithEnemyBullets enemyBullets ship =
+  let 
+    hits = filter (\eb -> dist (ebPos eb) (position ship) < 10) enemyBullets
+  in (filter (`notElem` hits) enemyBullets, not (null hits))
 
 ------------------------------------------------------------
 -- Bullet vs Asteroid collisions
@@ -407,6 +552,19 @@ collideEnemies bs es sc =
       bs'          = filter (`notElem` hitBullets) bs
       survivors    = filter (`notElem` hitEnemies) es
       sc'          = sc + 200 * length hitEnemies
+  in (bs', survivors, sc')
+
+collideShooters :: [Bullet] -> [Shooter] -> Int -> ([Bullet], [Shooter], Int)
+collideShooters bs ss sc =
+  let hits = [ (b,s)
+             | b <- bs, s <- ss
+             , dist (bPos b) (sPos s) < sSize s
+             ]
+      hitBullets   = map fst hits
+      hitShooters  = map snd hits
+      bs'          = filter (`notElem` hitBullets) bs
+      survivors    = filter (`notElem` hitShooters) ss
+      sc'          = sc + 500 * length hitShooters
   in (bs', survivors, sc')
 
 ------------------------------------------------------------

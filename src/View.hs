@@ -16,6 +16,17 @@ pauseOverlayColor = makeColor 1.0 1.0 1.0 0.1
 enemyBulletColor :: Color
 enemyBulletColor = makeColor 0.0 1.0 1.0 1.0
 
+chaserAlienColor :: Color
+chaserAlienColor = makeColor 0.33 0.29 0.45 1.0
+chaserAlienShinec :: Color
+chaserAlienShinec = makeColor 0.48 0.56 0.72 1.0
+chaserHullShine :: Color
+chaserHullShine = makeColor 0.57 0.69 0.65 1.0
+chaserWindowColor :: Color
+chaserWindowColor = makeColor 0.74 0.79 0.88 1.0
+enemyEdge :: Color
+enemyEdge = makeColor 0.19 0.20 0.29 1.0
+
 shooterSpots :: Color 
 shooterSpots = makeColor 0.52 0.79 0.98 1.0
 shooterHull :: Color
@@ -49,6 +60,8 @@ drawMainMenu gs = pictures
   , drawAsteroid (menuAsteroid2 gs)
   , drawAsteroid (menuAsteroid3 gs)
   , drawAsteroid (menuAsteroid4 gs)
+  , drawEnemy    (menuEnemy gs)
+  , drawShooter  (menuShooter gs)
 
   , translate (-175) 150 $ scale 0.5 0.5 $ color white $ text "ASTEROIDS"
   , translate (-80) 50 $ scale 0.15 0.15 $ color lightGrey $ text ("High Score: " ++ show (highScore gs))
@@ -77,6 +90,8 @@ drawControlsScreen gs = pictures
   , drawAsteroid (menuAsteroid2 gs)
   , drawAsteroid (menuAsteroid3 gs)
   , drawAsteroid (menuAsteroid4 gs)
+  , drawEnemy    (menuEnemy gs)
+  , drawShooter  (menuShooter gs)
   
   , translate (-300) 200 $ scale 0.3 0.3 $ color white $ text "CONTROLS"
   
@@ -362,10 +377,71 @@ pixel pixelSize (x, y) = translate (x * pixelSize) (y * pixelSize) $ rectangleSo
 drawEnemy :: Enemy -> Picture
 drawEnemy e =
   translate x y $
-  color red $
-  polygon [(-10,-10),(10,-10),(0,15)]
+  scale 1.0 1.0 $ 
+  enemyPixelArt
   where
     (x, y) = ePos e
+    pixelSize = 3.0
+
+    bodyPixels =
+        [ (-7, -3), (-6, -4), (-5, -4), (-4, -4), (-3, -4), (-2, -4), (-1, -4), (0,-4), (1,-4), (2, -4), (3, -4), (4, -4), (5, -4), (5,-3)
+        , (6, -4), (6, -3), (6, -2), (7, -3), (7, -2)
+        ]
+
+    hullShine =
+        [ (-7, -2), (-6, -1), (-6, -3), (-5, -2), (-3, -3), (-1, -3), (0, -3), (1, -3), (2, -3), (3, -3), (4, -3), (5,-2), (6, -1)
+        ]
+
+    windowPixels = 
+        [ (-5, 1), (-5, 0)
+        , (-4, 1), (-4, 0), (-4, -1)
+        , (-3, 0), (-2, -1)
+        , (2, -1)
+        , (3, 3), (3, 2), (3, 1), (3, 0)
+        , (4, 2), (4, 1), (4, 0), (4, -1)
+        , (5, 1), (5, 0)
+        ]
+    
+    whiteAccents =
+        [(-6, -2), (-5, -3), (-4, -3), (-2, -3)
+        , (-4, 2), (-3, 3), (-3, 2), (-3, 1)
+        , (-1, 4), (-1, 3), (-1, 1)
+        , (0, 4), (0, 3)
+        , (1, 4), (1, 3), (1, 1)
+        ]
+    
+    chaserAlien = 
+        [(-2, 0), (-1, 0), (-1, -1), (0, 0), (0,-1), (1, 0), (1, -1), (2, 3), (2, 2), (2, 1), (2, 0)]
+    
+    chaserAlienShine =
+        [(-2, 3), (-2, 2), (-2, 1), (-1, 2), (0, 2), (0, 1), (1, 2)]
+
+    chaserEdge = 
+        [(-9, -4), (-8, -2), (-8, -3)
+        , (-7, -1), (-7, -4), (-7, -6)
+        , (-6, 1), (-6, 0), (-6, -5)
+        , (-5, 2), (-5, -1), (-5, -5)
+        , (-4, 5), (-4, 3), (-4, -2), (-4, -5)
+        , (-3, 4), (-3, -1), (-3, -2), (-3, -5), (-3, -6), (-3, -7)
+        , (-1, 5), (-1, -2), (-1, -5)
+        , (0, 5), (0, -2), (0, -5)
+        , (9, -4), (8, -2), (8, -3)
+        , (7, -1), (7, -4), (7, -6)
+        , (6, 1), (6, 0), (6, -5)
+        , (5, 2), (5, -1), (5, -5)
+        , (4, 5), (4, 3), (4, -2), (4, -5)
+        , (3, 4), (3, -1), (3, -2), (3, -5), (3, -6), (3, -7)
+        , (1, 5), (1, -2), (1, -5)
+        ]
+
+    enemyPixelArt = pictures $
+        [ color shooterHull $ pixel pixelSize pt | pt <- bodyPixels ] ++
+        [ color chaserHullShine $ pixel pixelSize pt | pt <- hullShine] ++
+        [ color white $ pixel pixelSize pt | pt <- whiteAccents] ++
+        [ color chaserWindowColor $ pixel pixelSize pt | pt <- windowPixels ] ++
+        [ color chaserAlienColor $ pixel pixelSize pt | pt <- chaserAlien] ++
+        [ color chaserAlienShinec $ pixel pixelSize pt | pt <- chaserAlienShine] ++
+        [ color enemyEdge $ pixel pixelSize pt | pt <- chaserEdge] 
 
 drawShooter :: Shooter -> Picture
 drawShooter s =
@@ -535,7 +611,7 @@ drawShooter s =
     
     drawPixelArt = pictures $
         [ color shooterSpots $ pixel pixelSize pt | pt <- spots ] ++
-        [ color black $ pixel pixelSize pt | pt <- edge ] ++
+        [ color enemyEdge $ pixel pixelSize pt | pt <- edge ] ++
         [ color shooterRing $ pixel pixelSize pt | pt <- ring ] ++
         [color shooterHull $ pixel pixelSize pt | pt <- hull] ++
         [color green $ pixel pixelSize pt | pt <- alien] ++

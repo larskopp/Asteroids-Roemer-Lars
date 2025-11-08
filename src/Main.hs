@@ -5,6 +5,7 @@ import Model
 import View
 import Input
 import Update
+import System.Random
 
 window :: Display
 window = InWindow "Asteroids (scaffold)" (800, 600) (100, 100)
@@ -16,4 +17,7 @@ fps :: Int
 fps = 60
 
 main :: IO ()
-main = play window background fps initialState draw handleInput step
+main = do -- AANPASSING: Maak main een IO actie
+  g <- getStdGen
+  play window background fps (initialState g) draw handleInput step
+

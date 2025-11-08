@@ -4,6 +4,7 @@ import Graphics.Gloss
 import Model
 import System.Random
 import Data.List (foldl')
+import Graphics.Gloss.Geometry.Angle (radToDeg)
 
 ------------------------------------------------------------
 -- Main step function
@@ -48,14 +49,18 @@ updateMenu dt gs =
         halfW = windowWidth / 2
         halfH = windowHeight / 2
 
+        respawnBuffer = 300.0 
+
+        -- Ship Update 
         ship = menuShip gs
         (sx, sy) = position ship
         (svx, svy) = velocity ship
         sx' = sx + svx * dt
         sy' = sy + svy * dt
 
-        ship' = if sx' > halfW + 50 || sy' < -halfH - 50
-                then ship { position = (-halfW - 50, 150), angle = -30, thrusting = True }
+        -- Respawn logica Ship (Gebruikt de startpositie uit Model.hs)
+        ship' = if sx' > halfW + respawnBuffer || sy' < -halfH - respawnBuffer
+                then ship { position = (-halfW - 50, 100), angle = -30, thrusting = True } 
                 else ship { position = (sx', sy'), angle = -30, thrusting = True }
 
         updateAndRespawnAsteroid a resetPos resetRot =
@@ -66,22 +71,50 @@ updateMenu dt gs =
               ay' = ay + avy * dt
               aRot' = aRotation a + dt * 10
               
-              isOutside = ax' < -halfW - 100 || ax' > halfW + 100 || ay' < -halfH - 100 || ay' > halfH + 100
+              -- Gebruik de grote respawnBuffer
+              isOutside = ax' < -halfW - respawnBuffer || ax' > halfW + respawnBuffer || ay' < -halfH - respawnBuffer || ay' > halfH + respawnBuffer
           in 
               if isOutside
               then a { aPos = resetPos, aRotation = resetRot }
               else a { aPos = (ax', ay'), aRotation = aRot' }
 
-        a1' = updateAndRespawnAsteroid (menuAsteroid gs)  (halfW + 100, -100) 0
-        a2' = updateAndRespawnAsteroid (menuAsteroid2 gs) (-halfW - 100, 200) 45
-        a3' = updateAndRespawnAsteroid (menuAsteroid3 gs) (100, halfH + 100) 90
-        a4' = updateAndRespawnAsteroid (menuAsteroid4 gs) (-200, -halfH - 50) (-45)
-                    
+        a1' = updateAndRespawnAsteroid (menuAsteroid gs)  (halfW + 50, -100) 0
+        a2' = updateAndRespawnAsteroid (menuAsteroid2 gs) (-halfW - 200, 200) 45
+        a3' = updateAndRespawnAsteroid (menuAsteroid3 gs) (100, halfH + 300) 90
+        a4' = updateAndRespawnAsteroid (menuAsteroid4 gs) (-100, -halfH) (-45)
+        
+        -- Enemy (Chaser) Update
+        enemy = menuEnemy gs
+        (ex, ey) = ePos enemy
+        (evx, evy) = eVel enemy
+        ex' = ex + evx * dt
+        ey' = ey + evy * dt
+        
+        -- Respawn van de Enemy: Reset naar startpositie wanneer buiten beeld
+        enemy' = if ex' < -halfW - respawnBuffer || ey' < -halfH - respawnBuffer || ex' > halfW + respawnBuffer || ey' > halfH + respawnBuffer
+                 then enemy { ePos = (halfW + 250, halfH + 100), eVel = (-50, -30), eAngle = 10.0 }
+                 else enemy { ePos = (ex', ey'), eAngle = eAngle enemy}
+                 
+        -- Shooter Update
+        shooter = menuShooter gs
+        (sx_shooter, sy_shooter) = sPos shooter
+        (svx_shooter, svy_shooter) = sVel shooter
+        sx_shooter' = sx_shooter + svx_shooter * dt
+        sy_shooter' = sy_shooter + svy_shooter * dt
+
+        -- Respawn van de Shooter
+        shooter' = if sx_shooter' > halfW + respawnBuffer || sy_shooter' < -halfH - respawnBuffer
+                   then shooter { sPos = (-halfW - 150, -250) }
+                   else shooter { sPos = (sx_shooter', sy_shooter') }
+
     in gs { menuShip = ship', 
             menuAsteroid = a1',
             menuAsteroid2 = a2',
             menuAsteroid3 = a3',
-            menuAsteroid4 = a4' }
+            menuAsteroid4 = a4',
+            menuEnemy = enemy',      
+            menuShooter = shooter'   
+            }
 
 ------------------------------------------------------------
 -- Ship movement
@@ -247,16 +280,24 @@ updateEnemies :: Float -> Ship -> [Enemy] -> [Enemy]
 updateEnemies dt ship = map (chasePlayer dt (position ship))
 
 chasePlayer :: Float -> Point -> Enemy -> Enemy
-chasePlayer dt (px, py) e =
+chasePlayer dt shipPos e =
   let (x, y) = ePos e
+      (px, py) = shipPos
+      
       dx = px - x
       dy = py - y
-      distToPlayer = sqrt (dx*dx + dy*dy) + 1
+
+      distToPlayer = max 1.0 (sqrt (dx*dx + dy*dy)) 
+      
       vx = enemySpeed * dx / distToPlayer
       vy = enemySpeed * dy / distToPlayer
+      
       x' = wrap windowWidth  (x + vx * dt)
       y' = wrap windowHeight (y + vy * dt)
-  in e { ePos = (x', y'), eVel = (vx, vy) }
+
+      newAngle = angleToPoint (x, y) shipPos
+      
+  in e { ePos = (x', y'), eVel = (vx, vy), eSize = eSize e, eAngle = newAngle }
 
 
 newEnemy :: StdGen -> (Enemy, StdGen)
@@ -285,7 +326,7 @@ newEnemy g =
       _ -> (0, 0, g1)
 
     startPos = (startX, startY)
- in (Enemy { ePos = startPos, eVel = (0, 0), eSize = eSize }, g2)
+ in (Enemy { ePos = startPos, eVel = (0, 0), eSize = eSize}, g2)
 
 getNewEnemySpawnRate :: StdGen -> Int -> (Float, StdGen)
 getNewEnemySpawnRate g currentScore =
@@ -457,7 +498,7 @@ resetPlayer gs =
         , exSize = 35
         }
 
-    baseState = initialState
+    baseState = initialState (generator gs)
     
     gameOverState = baseState 
                     { 
@@ -598,3 +639,13 @@ wrap limit coord
   | coord >  limit / 2 = coord - limit
   | coord < -limit / 2 = coord + limit
   | otherwise          = coord
+
+angleToPoint :: Point -> Point -> Float
+angleToPoint (x1, y1) (x2, y2) =
+  let 
+    dx = x2 - x1
+    dy = y2 - y1
+    angleRad = atan2 dy dx
+    angleDeg = radToDeg angleRad
+  in 
+    angleDeg - 90.0

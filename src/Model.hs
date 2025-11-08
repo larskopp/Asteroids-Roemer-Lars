@@ -44,7 +44,7 @@ enemySpawnScore :: Int
 enemySpawnScore = 500     -- spawn a Chaser after this score
 
 shooterSpawnScore :: Int
-shooterSpawnScore = 1500   -- spawn a Shooter after this score
+shooterSpawnScore = 2500   -- spawn a Shooter after this score
 
 enemySpeed :: Float
 enemySpeed = 70          -- pixels per second
@@ -79,6 +79,8 @@ data GameState = GameState
   , startHighScore    :: Int
   , currentScreen     :: Screen
   , menuShip          :: Ship
+  , menuEnemy         :: Enemy
+  , menuShooter       :: Shooter
   , menuAsteroid      :: Asteroid
   , menuAsteroid2     :: Asteroid
   , menuAsteroid3     :: Asteroid
@@ -127,9 +129,10 @@ data Asteroid = Asteroid
 -- Enemy (intelligent)
 ------------------------------------------------------------
 data Enemy = Enemy
-  { ePos :: Point
-  , eVel :: Vector
-  , eSize :: Float
+  { ePos   :: Point
+  , eVel   :: Vector
+  , eSize  :: Float
+  , eAngle :: Float
   } deriving (Show, Eq)
 
 data Shooter = Shooter
@@ -151,9 +154,9 @@ data Explosion = Explosion
 ------------------------------------------------------------
 -- Initial state
 ------------------------------------------------------------
-initialState :: GameState
-initialState =
-  let g = mkStdGen 43
+initialState :: StdGen -> GameState
+initialState g =
+  let 
       halfW = windowWidth / 2
       halfH = windowHeight / 2
 
@@ -169,11 +172,21 @@ initialState =
 
       (starList, finalGen) = generateStars 200 g
 
-      startMenuShip = Ship { position = (-halfW - 50, 100), velocity = (40, -20), angle = -30, thrusting = True }
-      startA1 = Asteroid { aPos = (halfW + 100, -100), aVel = (-30, 0), aSize = 40, aRotation = 0, aTexture = 2 }
-      startA2 = Asteroid { aPos = (-halfW - 100, 200), aVel = (35, -15), aSize = 60, aRotation = 45, aTexture = 5 }
-      startA3 = Asteroid { aPos = (100, halfH + 100), aVel = (-20, -40), aSize = 50, aRotation = 90, aTexture = 7 }
-      startA4 = Asteroid { aPos = (-100, -halfH - 50), aVel = (15, 25), aSize = 25, aRotation = -45, aTexture = 1 }
+      startMenuShip = Ship { position = (-halfW - 50, 100), velocity = (40, -20), angle = -30, thrusting = True, iTimer = 0.0, angularV = 0.0 }
+      
+      -- Asteroid 1 & 2: Komen relatief snel
+      startA1 = Asteroid { aPos = (halfW + 150, -100), aVel = (-40, 10), aSize = 40, aRotation = 0, aTexture = 2 }
+      startA2 = Asteroid { aPos = (-halfW - 300, 200), aVel = (35, -15), aSize = 60, aRotation = 45, aTexture = 5 } 
+      
+      -- Asteroid 3 & 4: Komen met vertraging (verder weg gespawnd)
+      startA3 = Asteroid { aPos = (100, halfH + 400), aVel = (-20, -40), aSize = 50, aRotation = 90, aTexture = 7 } 
+      startA4 = Asteroid { aPos = (-100, -halfH - 500), aVel = (15, 25), aSize = 25, aRotation = -45, aTexture = 1 } 
+      
+      -- Enemy (Chaser): Start van Rechtsboven, naar beneden/links
+      startEnemy = Enemy { ePos = (halfW + 250, halfH + 100), eVel = (-50, -30), eSize = 25.0, eAngle = 10.0 } 
+      
+      -- Shooter: Start van Links (beweegt naar rechts)
+      startShooter = Shooter { sPos = (-halfW - 150, -250), sVel = (30, 10), sSize = 30.0, sFireTimer = shooterFireRate }
 
   in GameState
     { player            = Ship { position = (0, 0)
@@ -191,10 +204,10 @@ initialState =
     , explosions        = []
     , score             = 0
     , isPaused          = False
-    , spawnTimer        = 1.0
+    , spawnTimer        = 0.5
     , enemySpawnTimer   = 1.0
     , shooterSpawnTimer = 1.0
-    , generator         = g 
+    , generator         = finalGen
     , stars             = starList
     , lives             = 3
     , highScore         = 0
@@ -205,10 +218,12 @@ initialState =
     , menuAsteroid2     = startA2
     , menuAsteroid3     = startA3
     , menuAsteroid4     = startA4
+    , menuEnemy         = startEnemy
+    , menuShooter       = startShooter
     }
 
 newGameState :: GameState -> GameState
-newGameState gs = initialState 
+newGameState gs = (initialState (generator gs))
   { highScore = highScore gs
   , startHighScore = highScore gs
   , currentScreen = GameScreen

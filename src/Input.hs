@@ -116,7 +116,7 @@ handleRunningInput ev gs = case ev of
 ------------------------------------------------------------
 handleRestart :: GameState -> GameState
 handleRestart gs
-  | isPaused gs && lives gs <= 0 = initialState { highScore = highScore gs } -- Reset game but keep high score
+  | isPaused gs && lives gs <= 0 = (initialState (generator gs)) { highScore = highScore gs } -- Reset game but keep high score
   | otherwise                    = gs
 
 togglePause :: GameState -> GameState

@@ -140,6 +140,8 @@ shootBullet gs =
       (x, y) = position ship
       a = angle ship * pi / 180
       speed = 400
+      x_start = x + 20 * cos a
+      y_start = y + 20 * sin a
       vel = (speed * cos a, speed * sin a)
-      b = Bullet { bPos = (x, y), bVel = vel, bTime = 0 }
+      b = Bullet { bPos = (x_start, y_start), bVel = vel, bTime = 0 }
   in gs { bullets = b : bullets gs }

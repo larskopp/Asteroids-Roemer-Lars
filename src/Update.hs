@@ -144,7 +144,7 @@ drag = 0.99
 ------------------------------------------------------------
 updateBullets :: Float -> [Bullet] -> [Bullet]
 updateBullets dt =
-  filter ((< bulletLifetime) . bTime)
+  filter ((< playerBulletLifetime) . bTime)
   . map (moveBullet dt)
 
 moveBullet :: Float -> Bullet -> Bullet
@@ -157,7 +157,7 @@ moveBullet dt b =
 
 updateEnemyBullets :: Float -> [EnemyBullet] -> [EnemyBullet]
 updateEnemyBullets dt =
-  filter ((< bulletLifetime) . ebTime)
+  filter ((< enemyBulletLifetime) . ebTime)
   . map (moveEnemyBullet dt)
 
 moveEnemyBullet :: Float -> EnemyBullet -> EnemyBullet

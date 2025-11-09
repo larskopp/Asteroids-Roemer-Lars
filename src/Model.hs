@@ -25,8 +25,11 @@ explosionLifetime = 1 -- 1 second animation
 ------------------------------------------------------------
 -- Bullet settings
 ------------------------------------------------------------
-bulletLifetime :: Float
-bulletLifetime = 2.0  -- seconds
+playerBulletLifetime :: Float
+playerBulletLifetime = 1.0  -- seconds
+
+enemyBulletLifetime :: Float
+enemyBulletLifetime = 2.0
 
 enemyBulletSpeed :: Float
 enemyBulletSpeed = 250

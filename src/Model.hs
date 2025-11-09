@@ -33,32 +33,35 @@ enemyBulletLifetime = 2.0
 
 enemyBulletSpeed :: Float
 enemyBulletSpeed = 250
+
 ------------------------------------------------------------
 -- Asteroid splitting constants
 ------------------------------------------------------------
 minAsteroidSize, splitFactor :: Float
-minAsteroidSize = 30     -- smallest asteroid radius before it stops splitting
-splitFactor     = 0.6    -- size ratio for child asteroids
+minAsteroidSize = 30
+splitFactor     = 0.6
 
 ------------------------------------------------------------
 -- Enemy behavior constants
 ------------------------------------------------------------
 enemySpawnScore :: Int
-enemySpawnScore = 500     -- spawn a Chaser after this score
+enemySpawnScore = 500
 
 shooterSpawnScore :: Int
-shooterSpawnScore = 2500   -- spawn a Shooter after this score
+shooterSpawnScore = 2500
 
 enemySpeed :: Float
-enemySpeed = 70          -- pixels per second
+enemySpeed = 70
 
 shooterFireRate :: Float
-shooterFireRate = 1.0    -- Fires once every second
+shooterFireRate = 1.0
 
 ------------------------------------------------------------
 -- Screen State
 ------------------------------------------------------------
-data Screen = MainMenu | ControlsScreen | GameScreen deriving (Show, Eq)
+data Screen = MainMenu | ControlsScreen | GameScreen
+  deriving (Show, Eq)
+
 ------------------------------------------------------------
 -- Game model
 ------------------------------------------------------------
@@ -78,7 +81,7 @@ data GameState = GameState
   , generator         :: StdGen
   , stars             :: [Point]
   , lives             :: Int
-  , highScore         :: Int 
+  , highScore         :: Int
   , startHighScore    :: Int
   , currentScreen     :: Screen
   , menuShip          :: Ship
@@ -88,6 +91,7 @@ data GameState = GameState
   , menuAsteroid2     :: Asteroid
   , menuAsteroid3     :: Asteroid
   , menuAsteroid4     :: Asteroid
+  , hasSavedHighScore :: Bool
   } deriving (Show, Eq)
 
 ------------------------------------------------------------
@@ -129,7 +133,7 @@ data Asteroid = Asteroid
   } deriving (Show, Eq)
 
 ------------------------------------------------------------
--- Enemy (intelligent)
+-- Enemy
 ------------------------------------------------------------
 data Enemy = Enemy
   { ePos   :: Point
@@ -138,18 +142,21 @@ data Enemy = Enemy
   , eAngle :: Float
   } deriving (Show, Eq)
 
+------------------------------------------------------------
+-- Shooter
+------------------------------------------------------------
 data Shooter = Shooter
-  { sPos :: Point
-  , sVel :: Vector
-  , sSize :: Float
+  { sPos       :: Point
+  , sVel       :: Vector
+  , sSize      :: Float
   , sFireTimer :: Float
   } deriving (Show, Eq)
 
 ------------------------------------------------------------
 -- Explosion
---------------------------------------------
+------------------------------------------------------------
 data Explosion = Explosion
-  { exPos :: Point
+  { exPos  :: Point
   , exTime :: Float
   , exSize :: Float
   } deriving (Show, Eq)
@@ -163,7 +170,7 @@ initialState g =
       halfW = windowWidth / 2
       halfH = windowHeight / 2
 
-      generateStars n gen = 
+      generateStars n gen =
         if n <= 0 
         then ([], gen)
         else 
@@ -175,33 +182,57 @@ initialState g =
 
       (starList, finalGen) = generateStars 200 g
 
-      startMenuShip = Ship { position = (-halfW - 50, 100), velocity = (40, -20), angle = -30, thrusting = True, iTimer = 0.0, angularV = 0.0 }
-      
-      -- Asteroid 1 & 2: Komen relatief snel
-      startA1 = Asteroid { aPos = (halfW + 150, -100), aVel = (-40, 10), aSize = 40, aRotation = 0, aTexture = 2 }
-      startA2 = Asteroid { aPos = (-halfW - 300, 200), aVel = (35, -15), aSize = 60, aRotation = 45, aTexture = 5 } 
-      
-      -- Asteroid 3 & 4: Komen met vertraging (verder weg gespawnd)
-      startA3 = Asteroid { aPos = (100, halfH + 400), aVel = (-20, -40), aSize = 50, aRotation = 90, aTexture = 7 } 
-      startA4 = Asteroid { aPos = (-100, -halfH - 500), aVel = (15, 25), aSize = 25, aRotation = -45, aTexture = 1 } 
-      
-      -- Enemy (Chaser): Start van Rechtsboven, naar beneden/links
-      startEnemy = Enemy { ePos = (halfW + 250, halfH + 100), eVel = (-50, -30), eSize = 25.0, eAngle = 10.0 } 
-      
-      -- Shooter: Start van Links (beweegt naar rechts)
-      startShooter = Shooter { sPos = (-halfW - 150, -250), sVel = (30, 10), sSize = 30.0, sFireTimer = shooterFireRate }
+      startMenuShip = Ship { position = (-halfW - 50, 100)
+                           , velocity = (40, -20)
+                           , angle = -30
+                           , thrusting = True
+                           , iTimer = 0.0
+                           , angularV = 0.0 }
+
+      startA1 = Asteroid { aPos = (halfW + 150, -100)
+                         , aVel = (-40, 10)
+                         , aSize = 40
+                         , aRotation = 0
+                         , aTexture = 2 }
+
+      startA2 = Asteroid { aPos = (-halfW - 300, 200)
+                         , aVel = (35, -15)
+                         , aSize = 60
+                         , aRotation = 45
+                         , aTexture = 5 } 
+
+      startA3 = Asteroid { aPos = (100, halfH + 400)
+                         , aVel = (-20, -40)
+                         , aSize = 50
+                         , aRotation = 90
+                         , aTexture = 7 } 
+
+      startA4 = Asteroid { aPos = (-100, -halfH - 500)
+                         , aVel = (15, 25)
+                         , aSize = 25
+                         , aRotation = -45
+                         , aTexture = 1 } 
+
+      startEnemy = Enemy { ePos = (halfW + 250, halfH + 100)
+                         , eVel = (-50, -30)
+                         , eSize = 25.0
+                         , eAngle = 10.0 }
+
+      startShooter = Shooter { sPos = (-halfW - 150, -250)
+                             , sVel = (30, 10)
+                             , sSize = 30.0
+                             , sFireTimer = shooterFireRate }
 
   in GameState
     { player            = Ship { position = (0, 0)
-                          , velocity = (0, 0)
-                          , angle = 90
-                          , angularV = 0
-                          , thrusting = False
-                          , iTimer = 0.0
-                          }
+                               , velocity = (0, 0)
+                               , angle = 90
+                               , angularV = 0
+                               , thrusting = False
+                               , iTimer = 0.0 }
     , bullets           = []
     , asteroids         = []
-    , enemies           = []     -- no enemies at start
+    , enemies           = []
     , shooters          = []
     , enemyBullets      = []
     , explosions        = []
@@ -217,20 +248,27 @@ initialState g =
     , startHighScore    = 0
     , currentScreen     = MainMenu
     , menuShip          = startMenuShip
+    , menuEnemy         = startEnemy
+    , menuShooter       = startShooter
     , menuAsteroid      = startA1
     , menuAsteroid2     = startA2
     , menuAsteroid3     = startA3
     , menuAsteroid4     = startA4
-    , menuEnemy         = startEnemy
-    , menuShooter       = startShooter
+    , hasSavedHighScore = False
     }
 
+
+------------------------------------------------------------
+-- Create a new game while keeping high score and RNG
+------------------------------------------------------------
 newGameState :: GameState -> GameState
-newGameState gs = (initialState (generator gs))
-  { highScore = highScore gs
-  , startHighScore = highScore gs
-  , currentScreen = GameScreen
-  , lives = 3
-  }
-
-
+newGameState gs =
+  let g   = generator gs
+      hs  = highScore gs
+      shs = startHighScore gs
+  in (initialState g)
+        { highScore = hs
+        , startHighScore = shs
+        , currentScreen = GameScreen
+        , hasSavedHighScore = False
+        }
